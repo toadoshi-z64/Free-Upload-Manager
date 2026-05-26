@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Download — Free Upload Manager</title>
+  <link rel="icon" type="image/png" href="../images/logo.png">
+  <link rel="stylesheet" href="../css/style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    #buzz-frame {
+      width: 100%;
+      border: none;
+      background: transparent;
+      display: block;
+      min-height: 300px;
+    }
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid hsl(var(--muted));
+      border-top-color: hsl(var(--foreground));
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="min-h-screen p-4" x-data="downloadApp()" x-init="init()">
+
+  <!-- Our header -->
+  <div class="text-center mb-1">
+    <a href="../index.html" class="inline-flex items-center gap-3 no-underline">
+      <img src="../images/logo.png" alt="Free Upload Manager" class="h-12 w-auto">
+      <h1 class="text-3xl font-bold mt-1 mb-0 text-foreground">FREE UPLOAD MANAGER</h1>
+    </a>
+    <p class="mt-0 text-muted-foreground">Fast and reliable file hosting service.</p>
+  </div>
+
+  <!-- Our navbar -->
+  <div class="text-center mb-4 text-sm">
+    <a href="../index.html" class="hover:underline font-medium">Index</a>
+    <span class="mx-1">|</span>
+    <a href="../help/index.html" class="hover:underline text-primary">Help</a>
+    <span class="mx-1">|</span>
+    <template x-if="accountId">
+      <span>
+        <a href="../account/index.html" class="hover:underline text-primary">My Account</a>
+        <span class="mx-1">|</span>
+        <button @click="localStorage.removeItem('fum_account_id'); accountId=''"
+          class="hover:underline text-primary bg-transparent border-none p-0 cursor-pointer text-sm">Logout</button>
+      </span>
+    </template>
+    <template x-if="!accountId">
+      <a href="../auth/index.html" class="hover:underline text-primary">Login / Signup</a>
+    </template>
+  </div>
+
+  <div class="mx-auto max-w-[60rem]">
+
+    <!-- Loading state -->
+    <div x-show="loading" class="text-sm text-muted-foreground mt-4">
+      <span class="spinner"></span> Loading file page…
+    </div>
+
+    <!-- Error -->
+    <div x-show="!loading && error" x-cloak class="mt-4 text-sm">
+      <p class="text-destructive" x-text="error"></p>
+      <p class="text-muted-foreground mt-1">The file may have expired on the hosting server.</p>
+      <a href="../index.html" class="text-primary hover:underline">Upload a new file →</a>
+    </div>
+
+    <!-- Embedded buzzheavier page (ad-blocked + rebranded) -->
+    <div x-show="!loading && !error" x-cloak>
+      <iframe id="buzz-frame" scrolling="no" sandbox="allow-scripts allow-downloads allow-same-origin allow-forms allow-popups"></iframe>
+    </div>
+
+  </div>
+
+  <script>
+    const PROXY = 'https://corsproxy.io/?url=';
+
+    // ── Ad-blocker CSS injected into the fetched page ──
+    // Hides: ads, cookie banners, nav, footer, buzzheavier branding, popups
+    const ADBLOCK_CSS = `
+      /* === AD BLOCKER === */
+      /* Generic ad containers */
+      [id*="ad"],[id*="ads"],[id*="advert"],[id*="banner"],[id*="sponsor"],
+      [class*="ad-"],[class*="ads-"],[class*="advert"],[class*="banner"],
+      [class*="sponsor"],[class*="promo"],[class*="popup"],[class*="overlay"],
+      [class*="cookie"],[class*="consent"],[class*="gdpr"],[class*="notice"],
+      [id*="cookie"],[id*="consent"],[id*="gdpr"],[id*="notice"],
+      [class*="modal"],[class*="interstitial"],
+      /* iframes that aren't the download */
+      iframe:not([src*="download"]):not([sandbox]),
+      /* script-inserted elements */
+      ins, .adsbygoogle,
+      /* Common ad network selectors */
+      [data-ad],[data-ads],[data-adunit],[data-slot],
+      div[style*="z-index: 99"],div[style*="z-index: 999"],
+      div[style*="z-index: 9999"],div[style*="z-index: 99999"],
+      /* Buzzheavier-specific: hide their navbar and footer so only the file card shows */
+      nav, header, footer,
+      [class*="nav"],[id*="nav"],
+      [class*="footer"],[id*="footer"],
+      [class*="header"]:not([class*="file"]):not([class*="download"]),
+      /* Their "Pricing", "Blog" links area */
+      [class*="pricing"],[class*="plan"],[class*="upgrade"],[class*="upsell"],
+      /* Toast/notification popups */
+      [class*="toast"],[class*="notification"],[class*="alert-bar"],
+      /* Any fixed/sticky positioned overlay elements */
+      [style*="position: fixed"],[style*="position:fixed"],
+      [style*="position: sticky"],[style*="position:sticky"]
+      { display: none !important; visibility: hidden !important; }
+
+      /* Make the body match dark theme */
+      html, body {
+        background: #0d0d0d !important;
+        color: #e5e5e5 !important;
+        font-family: sans-serif !important;
+        margin: 0 !important;
+        padding: 12px !important;
+      }
+      /* Remove their branding text if it shows up as text nodes */
+      h1, h2 { font-size: 1rem !important; }
+      /* Keep download button visible */
+      a[download], button[class*="download"], a[class*="download"],
+      button[id*="download"], a[id*="download"] {
+        display: inline-block !important;
+        visibility: visible !important;
+      }
+    `;
+
+    // ── Script injected to auto-resize iframe and block new windows ──
+    const INJECT_JS = `
+      (function() {
+        // Send height to parent for auto-resize
+        function sendHeight() {
+          parent.postMessage({ type: 'iframeHeight', h: document.body.scrollHeight }, '*');
+        }
+        new ResizeObserver(sendHeight).observe(document.body);
+        sendHeight();
+
+        // Block attempts to open new windows / redirect top frame
+        window.open = function(url) {
+          // Allow only actual file downloads
+          if (url && (url.includes('download') || url.startsWith('blob:'))) {
+            const a = document.createElement('a');
+            a.href = url; a.download = ''; a.click();
+          }
+          return null;
+        };
+
+        // Block top-frame navigation (anti-redirect)
+        Object.defineProperty(window, 'top', { get: () => window });
+        Object.defineProperty(window, 'parent', { get: () => window });
+
+        // Kill any setInterval/setTimeout that tries to redirect
+        const _setTimeout = window.setTimeout;
+        window.setTimeout = function(fn, delay, ...args) {
+          if (typeof fn === 'string' && fn.includes('location')) return;
+          return _setTimeout(fn, delay, ...args);
+        };
+
+        // Remove dynamically inserted ads
+        const obs = new MutationObserver(muts => {
+          muts.forEach(m => m.addedNodes.forEach(n => {
+            if (n.nodeType !== 1) return;
+            const tag = (n.tagName || '').toLowerCase();
+            const cls = (n.className || '').toLowerCase();
+            const id  = (n.id || '').toLowerCase();
+            if (tag === 'iframe' || tag === 'ins' ||
+                cls.includes('ad') || cls.includes('banner') || cls.includes('popup') ||
+                cls.includes('cookie') || cls.includes('overlay') ||
+                id.includes('ad') || id.includes('banner')) {
+              n.remove();
+            }
+          }));
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+      })();
+    `;
+
+    function downloadApp() {
+      return {
+        accountId: localStorage.getItem('fum_account_id') || '',
+        loading  : true,
+        error    : null,
+        fileId   : '',
+
+        async init() {
+          const p = new URLSearchParams(window.location.search);
+          const rawUrl = p.get('url');
+          const name   = p.get('name');
+
+          if (!rawUrl || !name) {
+            this.error = 'Invalid download link.';
+            this.loading = false;
+            return;
+          }
+
+          // Extract fileId from the URL params we embedded at upload time
+          const decoded   = decodeURIComponent(rawUrl);
+          const urlParams = new URLSearchParams(decoded.split('?')[1] || '');
+          this.fileId = urlParams.get('_id') || decoded.replace(/.*buzzheavier\.com\//, '').split('?')[0];
+
+          document.title = decodeURIComponent(name) + ' — Free Upload Manager';
+
+          // Listen for iframe height updates
+          window.addEventListener('message', e => {
+            if (e.data?.type === 'iframeHeight') {
+              const frame = document.getElementById('buzz-frame');
+              if (frame) frame.style.height = (e.data.h + 40) + 'px';
+            }
+          });
+
+          await this.loadPage();
+        },
+
+        async loadPage() {
+          const buzzUrl = `https://buzzheavier.com/${this.fileId}`;
+
+          try {
+            const res = await fetch(PROXY + encodeURIComponent(buzzUrl));
+            if (!res.ok) throw new Error(`HTTP ${res.status} — the file may have expired.`);
+
+            let html = await res.text();
+
+            // Fix all relative URLs so resources load correctly
+            html = html
+              .replace(/(href|src|action)="\/(?!\/)/g, '$1="https://buzzheavier.com/')
+              .replace(/(href|src|action)='\/(?!\/)/g, "$1='https://buzzheavier.com/")
+              .replace(/url\(\/(?!\/)/g, 'url(https://buzzheavier.com/');
+
+            // Fix hx-get / hx-post (htmx) relative paths
+            html = html.replace(/hx-(get|post|put|delete)="\/(?!\/)/g,
+              'hx-$1="https://buzzheavier.com/');
+
+            // Inject our ad-blocker CSS right after <head> or at start
+            const adStyle = `<style id="fum-adblock">${ADBLOCK_CSS}</style>`;
+            const adScript = `<script>${INJECT_JS}<\/script>`;
+
+            if (html.includes('<head>')) {
+              html = html.replace('<head>', '<head>' + adStyle);
+            } else if (html.includes('<html>')) {
+              html = html.replace('<html>', '<html>' + adStyle);
+            } else {
+              html = adStyle + html;
+            }
+
+            // Inject script before </body>
+            if (html.includes('</body>')) {
+              html = html.replace('</body>', adScript + '</body>');
+            } else {
+              html += adScript;
+            }
+
+            // Set the iframe srcdoc
+            const frame = document.getElementById('buzz-frame');
+            frame.srcdoc = html;
+            frame.style.height = '350px'; // initial height before resize fires
+
+            this.loading = false;
+          } catch (err) {
+            this.error   = err.message;
+            this.loading = false;
+          }
+        }
+      };
+    }
+  </script>
+</body>
+</html>

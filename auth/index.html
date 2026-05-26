@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login / Signup — Free Upload Manager</title>
+  <link rel="icon" type="image/png" href="../images/logo.png">
+  <link rel="stylesheet" href="../css/style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    input[type="text"] {
+      background: hsl(var(--background));
+      color: hsl(var(--foreground));
+      border: 1px solid hsl(var(--border));
+      padding: 4px 8px;
+      font-size: 14px;
+      border-radius: 2px;
+    }
+    input[type="text"]:focus { outline: none; border-color: hsl(var(--primary)); }
+  </style>
+</head>
+<body class="min-h-screen p-4" x-data="authApp()" x-init="init()">
+
+  <!-- Logo -->
+  <div class="text-center mb-1">
+    <a href="../index.html" class="inline-flex items-center gap-3 no-underline">
+      <img src="../images/logo.png" alt="Free Upload Manager" class="h-12 w-auto">
+      <h1 class="text-3xl font-bold mt-1 mb-0 text-foreground">FREE UPLOAD MANAGER</h1>
+    </a>
+    <p class="mt-0 text-muted-foreground">Fast and reliable file hosting service.</p>
+  </div>
+
+  <!-- Navbar -->
+  <div class="text-center mb-4 text-sm">
+    <a href="../index.html" class="hover:underline font-medium">Index</a>
+    <span class="mx-1">|</span>
+    <a href="../help/index.html" class="hover:underline text-primary">Help</a>
+    <span class="mx-1">|</span>
+    <a href="../auth/index.html" class="hover:underline text-primary">Login / Signup</a>
+  </div>
+
+  <div class="mx-auto max-w-[60rem]">
+
+    <!-- Already logged in -->
+    <template x-if="alreadyLoggedIn">
+      <div>
+        <p class="text-sm text-muted-foreground mb-2">You are already logged in.</p>
+        <a href="../account/index.html" class="text-primary hover:underline text-sm">Go to My Account →</a>
+      </div>
+    </template>
+
+    <!-- New account created -->
+    <template x-if="newAccountId && !alreadyLoggedIn">
+      <div class="border border-border rounded-sm p-6 mt-4 max-w-md">
+        <h2 class="text-lg font-bold mb-3">Account created!</h2>
+        <p class="text-sm text-muted-foreground mb-1">Your Account ID is:</p>
+        <p class="font-mono text-lg font-bold tracking-wider mb-3" x-text="newAccountId"></p>
+        <p class="text-sm text-muted-foreground mb-4">
+          <strong>Save this ID somewhere safe.</strong> It's the only way to access your account — there is no password recovery.
+        </p>
+        <a href="../account/index.html"
+          class="px-3 py-1 border border-border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer inline-block">
+          Go to My Account →
+        </a>
+      </div>
+    </template>
+
+    <!-- Login / Signup form -->
+    <template x-if="!alreadyLoggedIn && !newAccountId">
+      <div>
+        <!-- Login with existing ID -->
+        <div class="mb-6">
+          <h2 class="text-lg font-bold mb-2">Login with existing Account ID</h2>
+          <div class="flex flex-wrap gap-2 items-center">
+            <input type="text" x-model="inputId" placeholder="Enter your Account ID"
+              class="w-64" @keydown.enter="login()" maxlength="20">
+            <button @click="login()" :disabled="loading"
+              class="px-3 py-1 border border-border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer disabled:opacity-50">
+              Login
+            </button>
+          </div>
+          <p x-show="loginError" class="text-sm text-destructive mt-1" x-text="loginError"></p>
+        </div>
+
+        <hr class="border-border my-6">
+
+        <!-- Create new account -->
+        <div>
+          <h2 class="text-lg font-bold mb-2">Create a new account</h2>
+          <p class="text-sm text-muted-foreground mb-3">
+            No email needed. We'll generate a random Account ID for you.
+          </p>
+          <button @click="createAccount()" :disabled="loading"
+            class="px-3 py-1 border border-border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer disabled:opacity-50">
+            Create Account
+          </button>
+        </div>
+      </div>
+    </template>
+
+  </div>
+
+  <script>
+    function authApp() {
+      return {
+        inputId: '',
+        loginError: '',
+        loading: false,
+        newAccountId: null,
+        alreadyLoggedIn: false,
+
+        init() {
+          if (localStorage.getItem('fum_account_id')) {
+            this.alreadyLoggedIn = true;
+          }
+        },
+
+        generateId() {
+          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+          let id = '';
+          for (let i = 0; i < 20; i++) id += chars[Math.floor(Math.random() * chars.length)];
+          return id;
+        },
+
+        isValidId(id) {
+          return /^[A-Z0-9]{16}$|^[A-Z0-9]{20}$/.test(id);
+        },
+
+        login() {
+          const id = this.inputId.trim().toUpperCase();
+          this.loginError = '';
+          if (!this.isValidId(id)) {
+            this.loginError = 'Invalid Account ID format.';
+            return;
+          }
+          // Check local accounts
+          const accounts = JSON.parse(localStorage.getItem('fum_accounts') || '[]');
+          if (!accounts.includes(id)) {
+            this.loginError = 'Account not found. Check your Account ID.';
+            return;
+          }
+          localStorage.setItem('fum_account_id', id);
+          window.location.href = '../account/index.html';
+        },
+
+        createAccount() {
+          const id = this.generateId();
+          // Save to local account registry
+          const accounts = JSON.parse(localStorage.getItem('fum_accounts') || '[]');
+          accounts.push(id);
+          localStorage.setItem('fum_accounts', JSON.stringify(accounts));
+          localStorage.setItem('fum_account_id', id);
+          this.newAccountId = id;
+        }
+      };
+    }
+  </script>
+</body>
+</html>

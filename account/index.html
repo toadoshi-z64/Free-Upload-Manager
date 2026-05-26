@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Account — Free Upload Manager</title>
+  <link rel="icon" type="image/png" href="../images/logo.png">
+  <link rel="stylesheet" href="../css/style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="min-h-screen p-4" x-data="accountApp()" x-init="init()">
+
+  <!-- Logo -->
+  <div class="text-center mb-1">
+    <a href="../index.html" class="inline-flex items-center gap-3 no-underline">
+      <img src="../images/logo.png" alt="Free Upload Manager" class="h-12 w-auto">
+      <h1 class="text-3xl font-bold mt-1 mb-0 text-foreground">FREE UPLOAD MANAGER</h1>
+    </a>
+    <p class="mt-0 text-muted-foreground">Fast and reliable file hosting service.</p>
+  </div>
+
+  <!-- Navbar -->
+  <div class="text-center mb-4 text-sm">
+    <a href="../index.html" class="hover:underline font-medium">Index</a>
+    <span class="mx-1">|</span>
+    <a href="../help/index.html" class="hover:underline text-primary">Help</a>
+    <span class="mx-1">|</span>
+    <template x-if="accountId">
+      <span>
+        <a href="../account/index.html" class="hover:underline text-primary">My Account</a>
+        <span class="mx-1">|</span>
+        <button @click="logout()" class="hover:underline text-primary bg-transparent border-none p-0 cursor-pointer text-sm">Logout</button>
+      </span>
+    </template>
+    <template x-if="!accountId">
+      <a href="../auth/index.html" class="hover:underline text-primary">Login / Signup</a>
+    </template>
+  </div>
+
+  <div class="mx-auto max-w-[60rem]">
+
+    <!-- Not logged in -->
+    <template x-if="!accountId">
+      <p class="text-sm text-muted-foreground">
+        You are not logged in. <a href="../auth/index.html" class="text-primary hover:underline">Login / Signup</a>
+      </p>
+    </template>
+
+    <!-- Logged in -->
+    <template x-if="accountId">
+      <div>
+        <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+          <p class="text-sm text-muted-foreground">Logged in as: <span class="font-mono" x-text="accountId"></span></p>
+          <button @click="logout()"
+            class="px-3 py-1 border border-border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer">
+            Logout
+          </button>
+        </div>
+
+        <h2 class="text-lg font-bold mb-3">Your uploaded files</h2>
+
+        <template x-if="files.length === 0">
+          <p class="text-sm text-muted-foreground">
+            No files uploaded yet.
+            <a href="../index.html" class="text-primary hover:underline">Upload a file</a>.
+          </p>
+        </template>
+
+        <ul class="space-y-1" x-show="files.length > 0">
+          <template x-for="(file, i) in files" :key="file.id">
+            <li class="flex flex-wrap items-center gap-3 text-sm py-1 border-b border-border">
+              <a :href="file.file_url.replace('download/index.html', '../download/index.html')" target="_blank"
+                class="text-primary hover:underline flex-1" x-text="file.file_name"></a>
+              <span class="text-muted-foreground" x-text="humanSize(file.file_size)"></span>
+              <span class="text-muted-foreground" x-text="(file.download_count||0) + ' downloads'"></span>
+              <span class="text-muted-foreground text-xs" x-text="new Date(file.created_date).toLocaleDateString()"></span>
+              <button @click="confirmDelete(file)"
+                class="text-destructive hover:underline text-xs cursor-pointer bg-transparent border-none p-0"
+                x-text="deleteConfirm === file.id ? 'Confirm delete?' : 'Delete'"></button>
+              <template x-if="deleteConfirm === file.id">
+                <button @click="deleteConfirm = null"
+                  class="text-muted-foreground hover:underline text-xs cursor-pointer bg-transparent border-none p-0">
+                  Cancel
+                </button>
+              </template>
+            </li>
+          </template>
+        </ul>
+      </div>
+    </template>
+
+  </div>
+
+  <script>
+    function accountApp() {
+      return {
+        accountId: '',
+        files: [],
+        deleteConfirm: null,
+
+        init() {
+          this.accountId = localStorage.getItem('fum_account_id') || '';
+          if (this.accountId) this.loadFiles();
+        },
+
+        loadFiles() {
+          const history = JSON.parse(localStorage.getItem('fum_history') || '[]');
+          this.files = history.filter(f => f.account_id === this.accountId);
+        },
+
+        humanSize(b) {
+          if (!b) return '0 B';
+          const k = 1024, u = ['B','KB','MB','GB','TB'];
+          const i = Math.floor(Math.log(b) / Math.log(k));
+          return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + u[i];
+        },
+
+        confirmDelete(file) {
+          if (this.deleteConfirm === file.id) {
+            // Do delete
+            const history = JSON.parse(localStorage.getItem('fum_history') || '[]');
+            const updated = history.filter(f => f.id !== file.id);
+            localStorage.setItem('fum_history', JSON.stringify(updated));
+            this.deleteConfirm = null;
+            this.loadFiles();
+          } else {
+            this.deleteConfirm = file.id;
+          }
+        },
+
+        logout() {
+          localStorage.removeItem('fum_account_id');
+          this.accountId = '';
+          window.location.href = '../index.html';
+        }
+      };
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Help — Free Upload Manager</title>
+  <link rel="icon" type="image/png" href="../images/logo.png">
+  <link rel="stylesheet" href="../css/style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="min-h-screen p-4" x-data="{accountId: localStorage.getItem('fum_account_id') || ''}">
+
+  <!-- Logo + Header -->
+  <div class="text-center mb-1">
+    <a href="../index.html" class="inline-flex items-center gap-3 no-underline">
+      <img src="../images/logo.png" alt="Free Upload Manager" class="h-12 w-auto">
+      <h1 class="text-3xl font-bold mt-1 mb-0 text-foreground">FREE UPLOAD MANAGER</h1>
+    </a>
+    <p class="mt-0 text-muted-foreground">Fast and reliable file hosting service.</p>
+  </div>
+
+  <!-- Navbar -->
+  <div class="text-center mb-4 text-sm">
+    <a href="../index.html" class="hover:underline font-medium">Index</a>
+    <span class="mx-1">|</span>
+    <a href="../help/index.html" class="hover:underline text-primary">Help</a>
+    <span class="mx-1">|</span>
+    <template x-if="accountId">
+      <span>
+        <a href="../account/index.html" class="hover:underline text-primary">My Account</a>
+        <span class="mx-1">|</span>
+        <button @click="localStorage.removeItem('fum_account_id'); accountId=''" class="hover:underline text-primary bg-transparent border-none p-0 cursor-pointer text-sm">Logout</button>
+      </span>
+    </template>
+    <template x-if="!accountId">
+      <a href="../auth/index.html" class="hover:underline text-primary">Login / Signup</a>
+    </template>
+  </div>
+
+  <!-- Main content -->
+  <div class="mx-auto max-w-[60rem]">
+    <h2 class="text-xl font-bold mb-4">Help</h2>
+    <div class="space-y-4 text-sm">
+
+      <div>
+        <h3 class="font-bold mb-1">How do I upload a file?</h3>
+        <p class="text-muted-foreground">Click "Choose Files" on the main page, select one or more files, then click "Upload". Once the upload is complete, you'll receive a download link.</p>
+      </div>
+
+      <div>
+        <h3 class="font-bold mb-1">Is there a file size limit?</h3>
+        <p class="text-muted-foreground">No. There are no file size limits.</p>
+      </div>
+
+      <div>
+        <h3 class="font-bold mb-1">How long are files stored?</h3>
+        <p class="text-muted-foreground">Files are kept as long as they are being accessed.</p>
+      </div>
+
+      <div>
+        <h3 class="font-bold mb-1">Can I add a note to my upload?</h3>
+        <p class="text-muted-foreground">Yes. Click "Add Note" before uploading to attach a note that will be displayed on the download page.</p>
+      </div>
+
+      <div>
+        <h3 class="font-bold mb-1">How do I view my upload history?</h3>
+        <p class="text-muted-foreground">Create an account or log in, then visit <a href="../account/index.html" class="text-primary hover:underline">My Account</a> to see all files you've uploaded.</p>
+      </div>
+
+      <div>
+        <h3 class="font-bold mb-1">What is the account ID?</h3>
+        <p class="text-muted-foreground">Your account ID is a unique code that identifies your uploads. No password required — just keep it secret. You can create one for free on the <a href="../auth/index.html" class="text-primary hover:underline">Login / Signup</a> page.</p>
+      </div>
+
+      <div>
+        <h3 class="font-bold mb-1">How do I copy all download links at once?</h3>
+        <p class="text-muted-foreground">After uploading multiple files, click the "Copy links" button to copy all download links to your clipboard at once.</p>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Free Upload Manager</title>
+  <meta name="description" content="A limitless, secure file sharing platform that allows you to upload and store files of any size with ease.">
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <link rel="stylesheet" href="css/style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    .progress-bar-wrap { height: 18px; background: hsl(var(--muted)); border-radius: 3px; overflow: hidden; }
+    .progress-bar-inner { height: 100%; background: hsl(var(--foreground)); transition: width .3s ease; }
+    .progress-bar-inner.error { background: hsl(var(--destructive)); }
+    button:disabled { opacity: .5; cursor: default; }
+    textarea { background: hsl(var(--background)); color: hsl(var(--foreground)); border: 1px solid hsl(var(--border)); }
+    textarea:focus { outline: none; border-color: hsl(var(--primary)); }
+    [x-cloak] { display: none !important; }
+  </style>
+</head>
+<body class="min-h-screen p-4" x-data="app()" x-init="init()">
+
+  <!-- Logo -->
+  <div class="text-center mb-1">
+    <a href="index.html" class="inline-flex items-center gap-3 no-underline">
+      <img src="images/logo.png" alt="Free Upload Manager" class="h-12 w-auto">
+      <h1 class="text-3xl font-bold mt-1 mb-0 text-foreground">FREE UPLOAD MANAGER</h1>
+    </a>
+    <p class="mt-0 text-muted-foreground">Fast and reliable file hosting service.</p>
+  </div>
+
+  <!-- Navbar -->
+  <div class="text-center mb-4 text-sm">
+    <a href="index.html" class="hover:underline font-medium">Index</a>
+    <span class="mx-1">|</span>
+    <a href="help/index.html" class="hover:underline text-primary">Help</a>
+    <span class="mx-1">|</span>
+    <template x-if="accountId">
+      <span>
+        <a href="account/index.html" class="hover:underline text-primary">My Account</a>
+        <span class="mx-1">|</span>
+        <button @click="logout()" class="hover:underline text-primary bg-transparent border-none p-0 cursor-pointer text-sm">Logout</button>
+      </span>
+    </template>
+    <template x-if="!accountId">
+      <a href="auth/index.html" class="hover:underline text-primary">Login / Signup</a>
+    </template>
+  </div>
+
+  <!-- Main content -->
+  <div class="mx-auto max-w-[60rem]">
+    <p class="mb-3">Free Upload Manager is a fast, minimal and reliable file hosting service.</p>
+
+    <div class="flex flex-col">
+      <!-- File input -->
+      <div class="flex flex-wrap gap-4 items-center">
+        <input type="file" id="file-input" multiple class="text-sm">
+      </div>
+
+      <!-- Buttons -->
+      <div class="flex flex-wrap gap-2 items-center mt-2">
+        <button @click="upload()" :disabled="uploading"
+          class="px-3 py-1 border border-border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer disabled:opacity-50">
+          Upload
+        </button>
+        <button @click="showNote = true" x-show="!showNote"
+          class="px-3 py-1 border border-border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer">
+          Add Note
+        </button>
+        <button @click="cancel()" :disabled="!uploading"
+          class="px-3 py-1 border border-border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer disabled:opacity-50">
+          Cancel
+        </button>
+        <button @click="copyLinks()" :disabled="completed.length === 0"
+          class="px-3 py-1 border border-border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer disabled:opacity-50"
+          x-text="copyText">
+        </button>
+      </div>
+
+      <!-- Note textarea -->
+      <div class="mt-2" x-show="showNote" x-cloak>
+        <textarea class="pt-1 border rounded-sm w-full sm:w-3/4 p-2 text-sm" rows="1"
+          maxlength="500"
+          placeholder="Notes to display under the download link (e.g., file password, social handles)."
+          x-model="note"></textarea>
+      </div>
+
+      <!-- Upload queue -->
+      <ul x-show="queue.length > 0 || completed.length > 0" class="ps-4 mt-3 list-none" x-cloak>
+        <template x-for="(task, i) in queue" :key="i">
+          <li x-show="task.status !== 'completed'" class="mb-3">
+            <div class="flex flex-col gap-1">
+              <span class="text-sm" x-text="task.name"></span>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-inner"
+                  :class="{ error: task.status === 'error' }"
+                  :style="`width:${task.progress}%`"></div>
+              </div>
+              <span class="text-sm"
+                :class="{ 'text-destructive': task.status === 'error' }"
+                x-text="task.statsText"></span>
+            </div>
+          </li>
+        </template>
+        <template x-for="(item, i) in completed" :key="'done' + i">
+          <li class="text-sm py-1">
+            <a :href="item.link" target="_blank" class="hover:underline text-primary"
+              x-text="`${item.name} — ${item.sizeText}`"></a>
+          </li>
+        </template>
+      </ul>
+    </div>
+
+    <h4>Our main features include</h4>
+    <ul>
+      <li>It's Fast</li>
+      <li>Simple UI, No Bullshit, Just Works.</li>
+      <li>No file size limits, No download speed caps.</li>
+      <li>Strict Zero log policy - We don't care what you upload or download.</li>
+      <li>Files will be kept forever as long as they are accessed.</li>
+    </ul>
+    <p class="mt-4 text-sm text-muted-foreground">We emphasize Privacy, Net Neutrality and Free Software.</p>
+  </div>
+
+  <script>
+    // Upload endpoint — direct first, CORS proxy as fallback
+    const UPLOAD_BASE   = 'https://w.buzzheavier.com';
+    const CORS_PROXY    = 'https://corsproxy.io/?url=';
+
+    function makeUrl(filename, note, useProxy) {
+      const noteParam = note ? '?note=' + btoa(unescape(encodeURIComponent(note))) : '';
+      const target    = `${UPLOAD_BASE}/${encodeURIComponent(filename)}${noteParam}`;
+      return useProxy ? CORS_PROXY + encodeURIComponent(target) : target;
+    }
+
+    function doXHR(url, headers, file, onProgress) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', url, true);
+        Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+        xhr.upload.onprogress = onProgress;
+        xhr.onload  = () => xhr.status >= 200 && xhr.status < 300
+          ? resolve(xhr.responseText.trim())
+          : reject(new Error(`HTTP ${xhr.status}`));
+        xhr.onerror = () => reject(new Error('network'));
+        xhr.onabort = () => reject(new Error('cancelled'));
+        xhr._abort  = () => xhr.abort();
+        resolve._xhr = xhr;         // expose for cancel
+        xhr.send(file);
+        resolve._xhr = xhr;
+      });
+    }
+
+    function app() {
+      return {
+        accountId : localStorage.getItem('fum_account_id') || '',
+        queue     : [],
+        completed : [],
+        showNote  : false,
+        note      : '',
+        copyText  : 'Copy links',
+        uploading : false,
+        _xhrs     : [],
+
+        init() {
+          this.accountId = localStorage.getItem('fum_account_id') || '';
+        },
+
+        logout() {
+          localStorage.removeItem('fum_account_id');
+          this.accountId = '';
+        },
+
+        humanSize(b) {
+          if (!b) return '0 B';
+          const u = ['B','KB','MB','GB','TB'];
+          const i = Math.floor(Math.log(b) / Math.log(1024));
+          return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + u[i];
+        },
+
+        async upload() {
+          const input = document.getElementById('file-input');
+          const files = Array.from(input.files || []);
+          if (!files.length) return;
+
+          this.uploading = true;
+          this._xhrs = [];
+
+          for (let idx = 0; idx < files.length; idx++) {
+            const file  = files[idx];
+            const task  = { name: file.name, progress: 0, status: 'inprogress', statsText: 'Starting…', sizeText: this.humanSize(file.size) };
+            this.queue.push(task);
+            const taskRef   = this.queue[this.queue.length - 1];
+            const startTime = Date.now();
+
+            const headers = { 'Content-Type': 'application/octet-stream' };
+            if (this.accountId) headers['Authorization'] = `Bearer ${this.accountId}`;
+
+            const onProgress = e => {
+              if (!e.lengthComputable) return;
+              const pct     = Math.round(e.loaded / e.total * 90) + 10;
+              const elapsed = (Date.now() - startTime) / 1000;
+              const speed   = elapsed > 0 ? this.humanSize(e.loaded / elapsed) + '/s' : '';
+              taskRef.progress  = pct;
+              taskRef.statsText = `${this.humanSize(e.loaded)} / ${this.humanSize(e.total)}${speed ? ' — ' + speed : ''}`;
+            };
+
+            try {
+              // 1. Try direct (no proxy overhead)
+              let link;
+              try {
+                const xhr = new XMLHttpRequest();
+                this._xhrs.push(xhr);
+                const url = makeUrl(file.name, this.note, false);
+                link = await new Promise((resolve, reject) => {
+                  xhr.open('PUT', url, true);
+                  Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+                  xhr.upload.onprogress = onProgress;
+                  xhr.onload  = () => xhr.status >= 200 && xhr.status < 300 ? resolve(xhr.responseText.trim()) : reject(new Error(`HTTP ${xhr.status}`));
+                  xhr.onerror = () => reject(new Error('cors'));
+                  xhr.onabort = () => reject(new Error('cancelled'));
+                  xhr.send(file);
+                });
+              } catch (e) {
+                if (e.message === 'cancelled') throw e;
+                // 2. CORS failed — retry through proxy
+                taskRef.statsText = 'Retrying via proxy…';
+                taskRef.progress  = 5;
+                const xhr2 = new XMLHttpRequest();
+                this._xhrs.push(xhr2);
+                const url2 = makeUrl(file.name, this.note, true);
+                link = await new Promise((resolve, reject) => {
+                  xhr2.open('PUT', url2, true);
+                  Object.entries(headers).forEach(([k, v]) => xhr2.setRequestHeader(k, v));
+                  xhr2.upload.onprogress = onProgress;
+                  xhr2.onload  = () => xhr2.status >= 200 && xhr2.status < 300 ? resolve(xhr2.responseText.trim()) : reject(new Error(`Upload failed: HTTP ${xhr2.status}`));
+                  xhr2.onerror = () => reject(new Error('Upload failed — check your connection'));
+                  xhr2.onabort = () => reject(new Error('cancelled'));
+                  xhr2.send(file);
+                });
+              }
+
+              // Buzzheavier PUT returns JSON like:
+              // {"code":201,"data":{"id":"abc123","locationId":"xyz", ...}}
+              // Extract the real file ID from it
+              try {
+                const json = JSON.parse(link);
+                if (json.data && json.data.id) {
+                  // Store locationId too so download page can try location-specific CDN
+                  const fileId = json.data.id;
+                  const locId  = json.data.locationId || '';
+                  link = `https://buzzheavier.com/${fileId}?_loc=${locId}&_id=${fileId}`;
+                }
+              } catch (_) {
+                // Not JSON — treat as a plain URL
+                if (link && !link.startsWith('http')) {
+                  link = 'https://buzzheavier.com/' + link.replace(/^\/+/, '');
+                }
+              }
+
+              // Build our own download page URL (shareable, works for anyone)
+              const dlParams = new URLSearchParams({ name: file.name, size: file.size, url: link });
+              if (this.note) dlParams.set('note', this.note);
+              const ourLink = 'download/index.html?' + dlParams.toString();
+
+              const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+              const speed   = this.humanSize(file.size / (elapsed || 1)) + '/s';
+              taskRef.progress  = 100;
+              taskRef.status    = 'completed';
+              taskRef.statsText = `Done in ${elapsed}s (${speed})`;
+              this.completed.push({ name: file.name, link: ourLink, sizeText: this.humanSize(file.size) });
+
+              // Save to history
+              const history = JSON.parse(localStorage.getItem('fum_history') || '[]');
+              history.unshift({
+                id: 'local_' + Date.now() + '_' + idx,
+                file_name: file.name, file_size: file.size,
+                file_url: ourLink, raw_url: link,
+                note: this.note || undefined, account_id: this.accountId || undefined,
+                created_date: new Date().toISOString(), download_count: 0,
+              });
+              localStorage.setItem('fum_history', JSON.stringify(history.slice(0, 500)));
+
+            } catch (err) {
+              taskRef.status    = 'error';
+              taskRef.statsText = `Error: ${err.message}`;
+              taskRef.progress  = 100;
+            }
+          }
+
+          this.uploading = false;
+          input.value   = '';
+        },
+
+        cancel() {
+          this._xhrs.forEach(x => { try { x.abort(); } catch(_) {} });
+          this._xhrs = [];
+        },
+
+        copyLinks() {
+          const text = this.completed.map(c => c.link).join('\n');
+          navigator.clipboard.writeText(text).catch(() => {
+            const t = Object.assign(document.createElement('textarea'), { value: text });
+            document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
+          });
+          this.copyText = 'Copied!';
+          setTimeout(() => this.copyText = 'Copy links', 2000);
+        }
+      };
+    }
+  </script>
+</body>
+</html>

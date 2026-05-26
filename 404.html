@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 — Free Upload Manager</title>
+  <link rel="icon" type="image/png" href="/images/logo.png">
+  <link rel="stylesheet" href="/css/style.css">
+  <script>
+    // Redirect to index preserving the repo base path on GitHub Pages
+    // e.g. https://user.github.io/repo/anything -> https://user.github.io/repo/
+    (function(){
+      var seg = window.location.pathname.split('/');
+      // If first segment after / is the repo name, keep it
+      var base = seg.length > 1 ? '/' + seg[1] + '/' : '/';
+      document.write('<base href="' + base + '">');
+    })();
+  </script>
+</head>
+<body style="font-family:sans-serif;background:hsl(0,0%,5%);color:hsl(0,0%,90%);padding:1rem">
+  <div style="text-align:center;margin-bottom:.5rem">
+    <a href="" id="home-link" style="display:inline-flex;align-items:center;gap:.75rem;text-decoration:none">
+      <img src="images/logo.png" alt="Free Upload Manager" style="height:3rem;width:auto">
+      <h1 style="font-size:1.875rem;font-weight:700;margin:.25rem 0 0;color:inherit">FREE UPLOAD MANAGER</h1>
+    </a>
+    <p style="margin:0;color:hsl(0,0%,60%)">Fast and reliable file hosting service.</p>
+  </div>
+  <div style="text-align:center;margin-bottom:1rem;font-size:.875rem">
+    <a href="index.html" style="color:hsl(210,100%,50%)">Index</a>
+    <span style="margin:0 .25rem">|</span>
+    <a href="help/index.html" style="color:hsl(210,100%,50%)">Help</a>
+  </div>
+  <div style="max-width:60rem;margin:3rem auto;text-align:center">
+    <p>Page not found. <a href="index.html" style="color:hsl(210,100%,50%)">Back to index</a>.</p>
+  </div>
+</body>
+</html>
