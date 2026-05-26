@@ -123,14 +123,19 @@
   </div>
 
   <script>
-    // Upload endpoint — direct first, CORS proxy as fallback
-    const UPLOAD_BASE   = 'https://w.buzzheavier.com';
-    const CORS_PROXY    = 'https://corsproxy.io/?url=';
+    // ── Upload endpoint ──
+    // Replace WORKER_URL with your Cloudflare Worker URL after deploying cf-worker.js
+    // e.g. https://fum-proxy.yourname.workers.dev
+    const WORKER_URL  = 'https://fum-proxy.ville-wiese39.workers.dev';
+    const UPLOAD_BASE = 'https://w.buzzheavier.com';
 
     function makeUrl(filename, note, useProxy) {
       const noteParam = note ? '?note=' + btoa(unescape(encodeURIComponent(note))) : '';
-      const target    = `${UPLOAD_BASE}/${encodeURIComponent(filename)}${noteParam}`;
-      return useProxy ? CORS_PROXY + encodeURIComponent(target) : target;
+      if (useProxy) {
+        // Route through our Cloudflare Worker (handles CORS)
+        return `${WORKER_URL}/upload/${encodeURIComponent(filename)}${noteParam}`;
+      }
+      return `${UPLOAD_BASE}/${encodeURIComponent(filename)}${noteParam}`;
     }
 
     function doXHR(url, headers, file, onProgress) {

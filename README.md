@@ -4,14 +4,13 @@ A fast, minimal and reliable file hosting frontend that uploads directly to [Buz
 
 ## Features
 
-* Upload any number of files, any size — no limits
-* Optional note per upload, shown on the download page
-* it [fucking works](motherfuckingwebsite.com)
-* Cancel in-progress uploads
-* Copy all download links at once
-* Account system (ID-based, no email/password) — upload history saved locally
-* Light/dark mode (follows system preference)
-* 100% static — works on GitHub Pages
+- Upload any number of files, any size — no limits
+- Optional note per upload, shown on the download page
+- Cancel in-progress uploads
+- Copy all download links at once
+- Account system (ID-based, no email/password) — upload history saved locally
+- Light/dark mode (follows system preference)
+- 100% static — works on GitHub Pages
 
 ## Deploy to GitHub Pages
 
@@ -39,3 +38,21 @@ css/style.css       — Tailwind + theme variables
 images/logo.png     — Logo
 ```
 
+## Cloudflare Worker (krävs för upload från egen domän)
+
+Eftersom `w.buzzheavier.com` blockerar CORS-requests från egna domäner behövs en proxy.
+
+### Steg-för-steg:
+
+1. Gå till [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** → **Create**
+2. Välj **"Hello World"** → ge den ett namn (t.ex. `fum-proxy`) → **Deploy**
+3. Klicka **Edit code** → klistra in innehållet från `cf-worker.js` → **Deploy**
+4. Notera din worker-URL, t.ex. `https://fum-proxy.dittnamn.workers.dev`
+5. Öppna `index.html` och ändra raden:
+   ```js
+   const WORKER_URL = 'https://fum-proxy.yourname.workers.dev';
+   ```
+   till din faktiska worker-URL.
+6. Ändra `ALLOWED_ORIGIN` i `cf-worker.js` om du byter domän.
+
+Cloudflare Workers är gratis upp till 100 000 requests/dag.
