@@ -81,7 +81,9 @@
   </div>
 
   <script>
-    const PROXY = 'https://corsproxy.io/?url=';
+    // Worker-URL (samma som i index.html) — Worker hämtar Buzzheavier-sidan
+    // server-side, vilket kringgår deras 403-blockering av corsproxy.io.
+    const WORKER_URL = 'https://fum-proxy.ville-wiese39.workers.dev';
 
     // ── Ad-blocker CSS injected into the fetched page ──
     // Hides: ads, cookie banners, nav, footer, buzzheavier branding, popups
@@ -221,10 +223,9 @@
         },
 
         async loadPage() {
-          const buzzUrl = `https://buzzheavier.com/${this.fileId}`;
 
           try {
-            const res = await fetch(PROXY + encodeURIComponent(buzzUrl));
+            const res = await fetch(`${WORKER_URL}/page/${encodeURIComponent(this.fileId)}`);
             if (!res.ok) throw new Error(`HTTP ${res.status} — the file may have expired.`);
 
             let html = await res.text();
