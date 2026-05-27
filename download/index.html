@@ -67,10 +67,16 @@
     </div>
 
     <!-- Error -->
-    <div x-show="!loading && error" x-cloak class="mt-4 text-sm">
+    <div x-show="!loading && error" x-cloak class="mt-4 text-sm space-y-2">
       <p class="text-destructive" x-text="error"></p>
-      <p class="text-muted-foreground mt-1">The file may have expired on the hosting server.</p>
-      <a href="../index.html" class="text-primary hover:underline">Upload a new file →</a>
+      <p class="text-muted-foreground">File ID: <span class="font-mono" x-text="fileId"></span></p>
+      <p class="text-muted-foreground">
+        Prova direkt på buzzheavier:
+        <a :href="'https://buzzheavier.com/' + fileId" target="_blank"
+          class="text-primary hover:underline"
+          x-text="'buzzheavier.com/' + fileId"></a>
+      </p>
+      <a href="../index.html" class="text-primary hover:underline">Ladda upp ny fil →</a>
     </div>
 
     <!-- Embedded buzzheavier page (ad-blocked + rebranded) -->
@@ -82,7 +88,7 @@
 
   <script>
     // Use your Cloudflare Worker URL here (same as in index.html)
-    const WORKER_URL = 'https://fum-proxy.ville-wiese39.workers.dev';
+    const WORKER_URL = 'https://fum-proxy.yourname.workers.dev';
 
     // ── Ad-blocker CSS injected into the fetched page ──
     // Hides: ads, cookie banners, nav, footer, buzzheavier branding, popups
@@ -225,9 +231,17 @@
           const buzzUrl = `https://buzzheavier.com/${this.fileId}`;
 
           try {
+            if (!this.fileId || this.fileId.length < 4) {
+              throw new Error('Could not extract file ID from link. Please re-upload the file.');
+            }
+
             const workerPageUrl = `${WORKER_URL}/page/${this.fileId}`;
+            console.log('[FUM] Fetching:', workerPageUrl);
             const res = await fetch(workerPageUrl);
-            if (!res.ok) throw new Error(`HTTP ${res.status} — the file may have expired.`);
+            if (!res.ok) {
+              if (res.status === 404) throw new Error(`HTTP 404 — filen hittades inte på buzzheavier. ID: ${this.fileId}`);
+              throw new Error(`HTTP ${res.status} — något gick fel.`);
+            }
 
             let html = await res.text();
 
