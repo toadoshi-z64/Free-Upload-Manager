@@ -13,23 +13,17 @@
     #buzz-wrap {
       position: relative;
       width: 100%;
-      min-height: 300px;
+      /* Clip so the iframe's negative margin-top hides their header */
+      overflow: hidden;
+      border-radius: 2px;
     }
     #buzz-frame {
       width: 100%;
-      height: 500px;
+      height: 620px;
       border: none;
       display: block;
-      /* Hide scrollbar but keep scroll */
-      overflow: hidden;
-    }
-    /* Overlay that covers buzzheavier's own header/nav */
-    #buzz-cover-top {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      background: hsl(var(--background));
-      pointer-events: none;
-      z-index: 10;
+      /* Push their header (logo + tagline + navbar ≈ 135px) out of view */
+      margin-top: -135px;
     }
   </style>
 </head>
@@ -73,9 +67,6 @@
 
     <!-- Embedded buzzheavier page -->
     <div x-show="!error && fileId" x-cloak id="buzz-wrap">
-
-      <!-- This invisible div covers buzzheavier's own top bar -->
-      <div id="buzz-cover-top"></div>
 
       <iframe
         id="buzz-frame"
