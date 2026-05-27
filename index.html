@@ -257,8 +257,9 @@
         return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + u[i];
       }
 
-      // PUT through the Worker (needed for CORS) → w.buzzheavier.com/{filename}
-      // Content-Length is set explicitly so BuzzHeavier knows the full file size upfront.
+      // Single PUT directly to w.buzzheavier.com/{filename} — bypasses the Worker entirely
+      // so there are no Cloudflare body-size or buffering limits.
+      // The Worker is only used for the /page/ download-page relay.
       uploadFile() {
         return new Promise((resolve, reject) => {
           if (this._aborted) return reject(new Error('cancelled'));
@@ -266,15 +267,15 @@
           const xhr = new XMLHttpRequest();
           this._xhr = xhr;
 
-          const endpoint = new URL(this.workerUrl + '/api/upload/' + encodeURIComponent(this.file.name));
+          // PUT directly to BuzzHeavier — no Worker in the upload path
+          const endpoint = new URL('https://w.buzzheavier.com/' + encodeURIComponent(this.file.name));
           if (this.note) {
+            // BuzzHeavier requires the note to be base64-encoded
             endpoint.searchParams.set('note', btoa(unescape(encodeURIComponent(this.note))));
           }
 
           xhr.open('PUT', endpoint.toString(), true);
           if (this.authToken) xhr.setRequestHeader('Authorization', 'Bearer ' + this.authToken);
-          // Tell BuzzHeavier the exact file size — without this it may cut off large uploads early
-          xhr.setRequestHeader('X-File-Size', String(this.file.size));
 
           xhr.upload.onprogress = e => {
             if (!e.lengthComputable) return;
