@@ -10,29 +10,12 @@
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
     [x-cloak] { display: none !important; }
-    #buzz-frame {
-      width: 100%;
-      border: none;
-      background: transparent;
-      display: block;
-      min-height: 300px;
-    }
-    .spinner {
-      width: 20px; height: 20px;
-      border: 2px solid hsl(var(--muted));
-      border-top-color: hsl(var(--foreground));
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      display: inline-block;
-      vertical-align: middle;
-      margin-right: 6px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .dl-bar-wrap { height: 18px; background: hsl(var(--muted)); border-radius: 3px; overflow: hidden; }
+    .dl-bar-inner { height: 100%; background: hsl(var(--foreground)); transition: width .2s ease; }
   </style>
 </head>
-<body class="min-h-screen p-4" x-data="downloadApp()" x-init="init()">
+<body class="min-h-screen p-4" x-data="dlApp()" x-init="init()">
 
-  <!-- Our header -->
   <div class="text-center mb-1">
     <a href="../index.html" class="inline-flex items-center gap-3 no-underline">
       <img src="../images/logo.png" alt="Free Upload Manager" class="h-12 w-auto">
@@ -41,7 +24,6 @@
     <p class="mt-0 text-muted-foreground">Fast and reliable file hosting service.</p>
   </div>
 
-  <!-- Our navbar -->
   <div class="text-center mb-4 text-sm">
     <a href="../index.html" class="hover:underline font-medium">Index</a>
     <span class="mx-1">|</span>
@@ -62,228 +44,154 @@
 
   <div class="mx-auto max-w-[60rem]">
 
-    <!-- Loading state -->
-    <div x-show="loading" class="text-sm text-muted-foreground mt-4">
-      <span class="spinner"></span> Loading file page…
-    </div>
-
     <!-- Error -->
-    <div x-show="!loading && error" x-cloak class="mt-4 text-sm space-y-2">
+    <div x-show="error" x-cloak class="mt-4 text-sm space-y-2">
       <p class="text-destructive" x-text="error"></p>
       <p class="text-muted-foreground">File ID: <span class="font-mono" x-text="fileId"></span></p>
-      <p class="text-muted-foreground">
-        Prova direkt på buzzheavier:
-        <a :href="'https://buzzheavier.com/' + fileId" target="_blank"
-          class="text-primary hover:underline"
-          x-text="'buzzheavier.com/' + fileId"></a>
-      </p>
       <a href="../index.html" class="text-primary hover:underline">Ladda upp ny fil →</a>
     </div>
 
-    <!-- Embedded buzzheavier page (ad-blocked + rebranded) -->
-    <div x-show="!loading && !error" x-cloak>
-      <iframe id="buzz-frame" scrolling="no" sandbox="allow-scripts allow-downloads allow-same-origin allow-forms allow-popups"></iframe>
+    <!-- File card -->
+    <div x-show="!error && fileId" x-cloak class="border border-border rounded-sm p-6 mt-4 max-w-lg">
+      <h2 class="text-xl font-bold mb-4 break-all" x-text="fileName"></h2>
+
+      <table class="text-sm mb-5">
+        <tbody>
+          <tr x-show="fileSize">
+            <td class="pr-8 text-muted-foreground py-1">File size</td>
+            <td class="py-1" x-text="humanSize(fileSize)"></td>
+          </tr>
+          <tr x-show="fileNote">
+            <td class="pr-8 text-muted-foreground py-1 align-top">Note</td>
+            <td class="py-1 break-all" x-text="fileNote"></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Download button -->
+      <button @click="startDownload()" :disabled="busy"
+        class="px-6 py-2 border border-border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer disabled:opacity-50">
+        <span x-show="!busy">Download</span>
+        <span x-show="busy" x-cloak x-text="statusText"></span>
+      </button>
+
+      <!-- Progress -->
+      <div class="mt-3 max-w-xs" x-show="busy" x-cloak>
+        <div class="dl-bar-wrap">
+          <div class="dl-bar-inner" :style="`width:${pct}%`"></div>
+        </div>
+        <p class="text-xs text-muted-foreground mt-1" x-text="statsText"></p>
+      </div>
+
+      <p class="text-xs text-muted-foreground mt-5">
+        Hosted by Free Upload Manager ·
+        <a href="../index.html" class="hover:underline text-primary">Upload your own file</a>
+      </p>
     </div>
 
   </div>
 
   <script>
-    // Worker URL loaded from config.js
-    const WORKER_URL = (typeof FUM_CONFIG !== 'undefined') ? FUM_CONFIG.WORKER_URL : '';
-
-    // ── Ad-blocker CSS injected into the fetched page ──
-    // Hides: ads, cookie banners, nav, footer, buzzheavier branding, popups
-    const ADBLOCK_CSS = `
-      /* === AD BLOCKER === */
-      /* Generic ad containers */
-      [id*="ad"],[id*="ads"],[id*="advert"],[id*="banner"],[id*="sponsor"],
-      [class*="ad-"],[class*="ads-"],[class*="advert"],[class*="banner"],
-      [class*="sponsor"],[class*="promo"],[class*="popup"],[class*="overlay"],
-      [class*="cookie"],[class*="consent"],[class*="gdpr"],[class*="notice"],
-      [id*="cookie"],[id*="consent"],[id*="gdpr"],[id*="notice"],
-      [class*="modal"],[class*="interstitial"],
-      /* iframes that aren't the download */
-      iframe:not([src*="download"]):not([sandbox]),
-      /* script-inserted elements */
-      ins, .adsbygoogle,
-      /* Common ad network selectors */
-      [data-ad],[data-ads],[data-adunit],[data-slot],
-      div[style*="z-index: 99"],div[style*="z-index: 999"],
-      div[style*="z-index: 9999"],div[style*="z-index: 99999"],
-      /* Buzzheavier-specific: hide their navbar and footer so only the file card shows */
-      nav, header, footer,
-      [class*="nav"],[id*="nav"],
-      [class*="footer"],[id*="footer"],
-      [class*="header"]:not([class*="file"]):not([class*="download"]),
-      /* Their "Pricing", "Blog" links area */
-      [class*="pricing"],[class*="plan"],[class*="upgrade"],[class*="upsell"],
-      /* Toast/notification popups */
-      [class*="toast"],[class*="notification"],[class*="alert-bar"],
-      /* Any fixed/sticky positioned overlay elements */
-      [style*="position: fixed"],[style*="position:fixed"],
-      [style*="position: sticky"],[style*="position:sticky"]
-      { display: none !important; visibility: hidden !important; }
-
-      /* Make the body match dark theme */
-      html, body {
-        background: #0d0d0d !important;
-        color: #e5e5e5 !important;
-        font-family: sans-serif !important;
-        margin: 0 !important;
-        padding: 12px !important;
-      }
-      /* Remove their branding text if it shows up as text nodes */
-      h1, h2 { font-size: 1rem !important; }
-      /* Keep download button visible */
-      a[download], button[class*="download"], a[class*="download"],
-      button[id*="download"], a[id*="download"] {
-        display: inline-block !important;
-        visibility: visible !important;
-      }
-    `;
-
-    // ── Script injected to auto-resize iframe and block new windows ──
-    const INJECT_JS = `
-      (function() {
-        // Send height to parent for auto-resize
-        function sendHeight() {
-          parent.postMessage({ type: 'iframeHeight', h: document.body.scrollHeight }, '*');
-        }
-        new ResizeObserver(sendHeight).observe(document.body);
-        sendHeight();
-
-        // Block attempts to open new windows / redirect top frame
-        window.open = function(url) {
-          // Allow only actual file downloads
-          if (url && (url.includes('download') || url.startsWith('blob:'))) {
-            const a = document.createElement('a');
-            a.href = url; a.download = ''; a.click();
-          }
-          return null;
-        };
-
-        // Block top-frame navigation (anti-redirect)
-        Object.defineProperty(window, 'top', { get: () => window });
-        Object.defineProperty(window, 'parent', { get: () => window });
-
-        // Kill any setInterval/setTimeout that tries to redirect
-        const _setTimeout = window.setTimeout;
-        window.setTimeout = function(fn, delay, ...args) {
-          if (typeof fn === 'string' && fn.includes('location')) return;
-          return _setTimeout(fn, delay, ...args);
-        };
-
-        // Remove dynamically inserted ads
-        const obs = new MutationObserver(muts => {
-          muts.forEach(m => m.addedNodes.forEach(n => {
-            if (n.nodeType !== 1) return;
-            const tag = (n.tagName || '').toLowerCase();
-            const cls = (n.className || '').toLowerCase();
-            const id  = (n.id || '').toLowerCase();
-            if (tag === 'iframe' || tag === 'ins' ||
-                cls.includes('ad') || cls.includes('banner') || cls.includes('popup') ||
-                cls.includes('cookie') || cls.includes('overlay') ||
-                id.includes('ad') || id.includes('banner')) {
-              n.remove();
-            }
-          }));
-        });
-        obs.observe(document.body, { childList: true, subtree: true });
-      })();
-    `;
-
-    function downloadApp() {
+    function dlApp() {
       return {
-        accountId: localStorage.getItem('fum_account_id') || '',
-        loading  : true,
-        error    : null,
-        fileId   : '',
+        accountId : localStorage.getItem('fum_account_id') || '',
+        fileId    : '',
+        fileName  : '',
+        fileSize  : 0,
+        fileNote  : '',
+        error     : '',
+        busy      : false,
+        pct       : 0,
+        statusText: 'Preparing…',
+        statsText : '',
 
-        async init() {
+        init() {
           const p = new URLSearchParams(window.location.search);
-          const rawUrl = p.get('url');
-          const name   = p.get('name');
+          const rawUrl = p.get('url') || '';
+          this.fileName = decodeURIComponent(p.get('name') || '');
+          this.fileSize = parseInt(p.get('size') || '0', 10);
+          this.fileNote = p.get('note') ? decodeURIComponent(p.get('note')) : '';
 
-          if (!rawUrl || !name) {
-            this.error = 'Invalid download link.';
-            this.loading = false;
-            return;
+          // Extract fileId — stored as _id param inside the url value
+          const decoded    = decodeURIComponent(rawUrl);
+          const innerParams = new URLSearchParams(decoded.split('?')[1] || '');
+          this.fileId = innerParams.get('_id')
+            || decoded.replace(/.*buzzheavier\.com\//, '').split('?')[0].trim();
+
+          if (!this.fileId || !this.fileName) {
+            this.error = 'Ogiltig nedladdningslänk.';
           }
-
-          // Extract fileId from the URL params we embedded at upload time
-          const decoded   = decodeURIComponent(rawUrl);
-          const urlParams = new URLSearchParams(decoded.split('?')[1] || '');
-          this.fileId = urlParams.get('_id') || decoded.replace(/.*buzzheavier\.com\//, '').split('?')[0];
-
-          document.title = decodeURIComponent(name) + ' — Free Upload Manager';
-
-          // Listen for iframe height updates
-          window.addEventListener('message', e => {
-            if (e.data?.type === 'iframeHeight') {
-              const frame = document.getElementById('buzz-frame');
-              if (frame) frame.style.height = (e.data.h + 40) + 'px';
-            }
-          });
-
-          await this.loadPage();
+          if (this.fileName) document.title = this.fileName + ' — Free Upload Manager';
         },
 
-        async loadPage() {
-          const buzzUrl = `https://buzzheavier.com/${this.fileId}`;
+        humanSize(b) {
+          if (!b) return '0 B';
+          const u = ['B','KB','MB','GB','TB'];
+          const i = Math.floor(Math.log(b) / Math.log(1024));
+          return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + u[i];
+        },
+
+        async startDownload() {
+          if (this.busy) return;
+          this.busy       = true;
+          this.pct        = 0;
+          this.statusText = 'Connecting…';
+          this.statsText  = '';
+
+          const WORKER = (typeof FUM_CONFIG !== 'undefined') ? FUM_CONFIG.WORKER_URL : '';
+          const url    = `${WORKER}/download/${this.fileId}`;
+          const start  = Date.now();
 
           try {
-            if (!this.fileId || this.fileId.length < 4) {
-              throw new Error('Could not extract file ID from link. Please re-upload the file.');
-            }
+            const res = await fetch(url);
 
-            const workerPageUrl = `${WORKER_URL}/page/${this.fileId}`;
-            console.log('[FUM] Fetching:', workerPageUrl);
-            const res = await fetch(workerPageUrl);
             if (!res.ok) {
-              if (res.status === 404) throw new Error(`HTTP 404 — filen hittades inte på buzzheavier. ID: ${this.fileId}`);
-              throw new Error(`HTTP ${res.status} — något gick fel.`);
+              let msg = `HTTP ${res.status}`;
+              try { const j = await res.json(); msg = j.error || msg; } catch (_) {}
+              throw new Error(msg);
             }
 
-            let html = await res.text();
+            // Stream to blob with progress
+            const total  = parseInt(res.headers.get('content-length') || '0', 10) || this.fileSize;
+            const reader = res.body.getReader();
+            const chunks = [];
+            let received = 0;
 
-            // Fix all relative URLs so resources load correctly
-            html = html
-              .replace(/(href|src|action)="\/(?!\/)/g, '$1="https://buzzheavier.com/')
-              .replace(/(href|src|action)='\/(?!\/)/g, "$1='https://buzzheavier.com/")
-              .replace(/url\(\/(?!\/)/g, 'url(https://buzzheavier.com/');
+            this.statusText = 'Downloading…';
 
-            // Fix hx-get / hx-post (htmx) relative paths
-            html = html.replace(/hx-(get|post|put|delete)="\/(?!\/)/g,
-              'hx-$1="https://buzzheavier.com/');
-
-            // Inject our ad-blocker CSS right after <head> or at start
-            const adStyle = `<style id="fum-adblock">${ADBLOCK_CSS}</style>`;
-            const adScript = `<script>${INJECT_JS}<\/script>`;
-
-            if (html.includes('<head>')) {
-              html = html.replace('<head>', '<head>' + adStyle);
-            } else if (html.includes('<html>')) {
-              html = html.replace('<html>', '<html>' + adStyle);
-            } else {
-              html = adStyle + html;
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+              received += value.length;
+              if (total) {
+                this.pct = Math.min(99, Math.round(received / total * 100));
+                const elapsed = (Date.now() - start) / 1000;
+                const speed   = elapsed > 0 ? this.humanSize(received / elapsed) + '/s' : '';
+                this.statsText = `${this.humanSize(received)} / ${this.humanSize(total)}${speed ? ' — ' + speed : ''}`;
+              }
             }
 
-            // Inject script before </body>
-            if (html.includes('</body>')) {
-              html = html.replace('</body>', adScript + '</body>');
-            } else {
-              html += adScript;
-            }
+            // Trigger save dialog
+            const blob = new Blob(chunks);
+            const burl = URL.createObjectURL(blob);
+            Object.assign(document.createElement('a'), { href: burl, download: this.fileName })
+              .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            // Alternative: append + click
+            const a = document.createElement('a');
+            a.href = burl; a.download = this.fileName;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(burl), 15000);
 
-            // Set the iframe srcdoc
-            const frame = document.getElementById('buzz-frame');
-            frame.srcdoc = html;
-            frame.style.height = '350px'; // initial height before resize fires
+            const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+            this.pct        = 100;
+            this.statusText = 'Done!';
+            this.statsText  = `${this.humanSize(received)} på ${elapsed}s`;
+            setTimeout(() => { this.busy = false; }, 3000);
 
-            this.loading = false;
           } catch (err) {
-            this.error   = err.message;
-            this.loading = false;
+            this.error = 'Download misslyckades: ' + err.message;
+            this.busy  = false;
           }
         }
       };
