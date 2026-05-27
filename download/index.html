@@ -6,6 +6,7 @@
   <title>Download — Free Upload Manager</title>
   <link rel="icon" type="image/png" href="../images/logo.png">
   <link rel="stylesheet" href="../css/style.css">
+  <script src="../config.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
     [x-cloak] { display: none !important; }
@@ -87,8 +88,8 @@
   </div>
 
   <script>
-    // Use your Cloudflare Worker URL here (same as in index.html)
-    const WORKER_URL = 'https://fum-proxy.yourname.workers.dev';
+    // Worker URL loaded from config.js
+    const WORKER_URL = (typeof FUM_CONFIG !== 'undefined') ? FUM_CONFIG.WORKER_URL : '';
 
     // ── Ad-blocker CSS injected into the fetched page ──
     // Hides: ads, cookie banners, nav, footer, buzzheavier branding, popups

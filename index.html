@@ -7,6 +7,7 @@
   <meta name="description" content="A limitless, secure file sharing platform that allows you to upload and store files of any size with ease.">
   <link rel="icon" type="image/png" href="images/logo.png">
   <link rel="stylesheet" href="css/style.css">
+  <script src="config.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
     .progress-bar-wrap { height: 18px; background: hsl(var(--muted)); border-radius: 3px; overflow: hidden; }
@@ -123,10 +124,8 @@
   </div>
 
   <script>
-    // ── Upload endpoint ──
-    // Replace WORKER_URL with your Cloudflare Worker URL after deploying cf-worker.js
-    // e.g. https://fum-proxy.yourname.workers.dev
-    const WORKER_URL  = 'https://fum-proxy.yourname.workers.dev';
+    // Worker URL loaded from config.js
+    const WORKER_URL = (typeof FUM_CONFIG !== 'undefined') ? FUM_CONFIG.WORKER_URL : '';
     const UPLOAD_BASE = 'https://w.buzzheavier.com';
 
     function makeUrl(filename, note, useProxy) {
