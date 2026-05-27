@@ -81,8 +81,7 @@
   </div>
 
   <script>
-    // Worker-URL (samma som i index.html) — Worker hämtar Buzzheavier-sidan
-    // server-side, vilket kringgår deras 403-blockering av corsproxy.io.
+    // Use your Cloudflare Worker URL here (same as in index.html)
     const WORKER_URL = 'https://fum-proxy.ville-wiese39.workers.dev';
 
     // ── Ad-blocker CSS injected into the fetched page ──
@@ -223,9 +222,11 @@
         },
 
         async loadPage() {
+          const buzzUrl = `https://buzzheavier.com/${this.fileId}`;
 
           try {
-            const res = await fetch(`${WORKER_URL}/page/${encodeURIComponent(this.fileId)}`);
+            const workerPageUrl = `${WORKER_URL}/page/${this.fileId}`;
+            const res = await fetch(workerPageUrl);
             if (!res.ok) throw new Error(`HTTP ${res.status} — the file may have expired.`);
 
             let html = await res.text();
