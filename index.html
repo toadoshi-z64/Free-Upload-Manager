@@ -124,36 +124,8 @@
   </div>
 
   <script>
-    // Worker URL loaded from config.js
+    // Worker URL from config.js
     const WORKER_URL = (typeof FUM_CONFIG !== 'undefined') ? FUM_CONFIG.WORKER_URL : '';
-    const UPLOAD_BASE = 'https://w.buzzheavier.com';
-
-    function makeUrl(filename, note, useProxy) {
-      const noteParam = note ? '?note=' + btoa(unescape(encodeURIComponent(note))) : '';
-      if (useProxy) {
-        // Route through our Cloudflare Worker (handles CORS)
-        return `${WORKER_URL}/upload/${encodeURIComponent(filename)}${noteParam}`;
-      }
-      return `${UPLOAD_BASE}/${encodeURIComponent(filename)}${noteParam}`;
-    }
-
-    function doXHR(url, headers, file, onProgress) {
-      return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', url, true);
-        Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
-        xhr.upload.onprogress = onProgress;
-        xhr.onload  = () => xhr.status >= 200 && xhr.status < 300
-          ? resolve(xhr.responseText.trim())
-          : reject(new Error(`HTTP ${xhr.status}`));
-        xhr.onerror = () => reject(new Error('network'));
-        xhr.onabort = () => reject(new Error('cancelled'));
-        xhr._abort  = () => xhr.abort();
-        resolve._xhr = xhr;         // expose for cancel
-        xhr.send(file);
-        resolve._xhr = xhr;
-      });
-    }
 
     function app() {
       return {
@@ -164,7 +136,7 @@
         note      : '',
         copyText  : 'Copy links',
         uploading : false,
-        _xhrs     : [],
+        _uploaders: [],
 
         init() {
           this.accountId = localStorage.getItem('fum_account_id') || '';
@@ -188,93 +160,38 @@
           if (!files.length) return;
 
           this.uploading = true;
-          this._xhrs = [];
+          this._uploaders = [];
 
           for (let idx = 0; idx < files.length; idx++) {
-            const file  = files[idx];
-            const task  = { name: file.name, progress: 0, status: 'inprogress', statsText: 'Starting…', sizeText: this.humanSize(file.size) };
+            const file = files[idx];
+            const task = { name: file.name, progress: 0, status: 'inprogress', statsText: 'Starting…' };
             this.queue.push(task);
-            const taskRef   = this.queue[this.queue.length - 1];
-            const startTime = Date.now();
+            const taskRef = this.queue[this.queue.length - 1];
 
-            const headers = { 'Content-Type': 'application/octet-stream' };
-            if (this.accountId) headers['Authorization'] = `Bearer ${this.accountId}`;
-
-            const onProgress = e => {
-              if (!e.lengthComputable) return;
-              const pct     = Math.round(e.loaded / e.total * 90) + 10;
-              const elapsed = (Date.now() - startTime) / 1000;
-              const speed   = elapsed > 0 ? this.humanSize(e.loaded / elapsed) + '/s' : '';
-              taskRef.progress  = pct;
-              taskRef.statsText = `${this.humanSize(e.loaded)} / ${this.humanSize(e.total)}${speed ? ' — ' + speed : ''}`;
-            };
+            const uploader = new BuzzUploader(file, {
+              workerUrl : WORKER_URL,
+              note      : this.note,
+              authToken : this.accountId || null,
+              onProgress: (pct, stats) => {
+                taskRef.progress  = pct;
+                taskRef.statsText = stats;
+              },
+            });
+            this._uploaders.push(uploader);
 
             try {
-              // 1. Try direct (no proxy overhead)
-              let link;
-              try {
-                const xhr = new XMLHttpRequest();
-                this._xhrs.push(xhr);
-                const url = makeUrl(file.name, this.note, false);
-                link = await new Promise((resolve, reject) => {
-                  xhr.open('PUT', url, true);
-                  Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
-                  xhr.upload.onprogress = onProgress;
-                  xhr.onload  = () => xhr.status >= 200 && xhr.status < 300 ? resolve(xhr.responseText.trim()) : reject(new Error(`HTTP ${xhr.status}`));
-                  xhr.onerror = () => reject(new Error('cors'));
-                  xhr.onabort = () => reject(new Error('cancelled'));
-                  xhr.send(file);
-                });
-              } catch (e) {
-                if (e.message === 'cancelled') throw e;
-                // 2. CORS failed — retry through proxy
-                taskRef.statsText = 'Retrying via proxy…';
-                taskRef.progress  = 5;
-                const xhr2 = new XMLHttpRequest();
-                this._xhrs.push(xhr2);
-                const url2 = makeUrl(file.name, this.note, true);
-                link = await new Promise((resolve, reject) => {
-                  xhr2.open('PUT', url2, true);
-                  Object.entries(headers).forEach(([k, v]) => xhr2.setRequestHeader(k, v));
-                  xhr2.upload.onprogress = onProgress;
-                  xhr2.onload  = () => xhr2.status >= 200 && xhr2.status < 300 ? resolve(xhr2.responseText.trim()) : reject(new Error(`Upload failed: HTTP ${xhr2.status}`));
-                  xhr2.onerror = () => reject(new Error('Upload failed — check your connection'));
-                  xhr2.onabort = () => reject(new Error('cancelled'));
-                  xhr2.send(file);
-                });
-              }
+              const link = await uploader.start();
 
-              // Buzzheavier PUT returns JSON like:
-              // {"code":201,"data":{"id":"abc123","locationId":"xyz", ...}}
-              // Extract the real file ID from it
-              try {
-                const json = JSON.parse(link);
-                if (json.data && json.data.id) {
-                  // Store locationId too so download page can try location-specific CDN
-                  const fileId = json.data.id;
-                  const locId  = json.data.locationId || '';
-                  link = `https://buzzheavier.com/${fileId}?_loc=${locId}&_id=${fileId}`;
-                }
-              } catch (_) {
-                // Not JSON — treat as a plain URL
-                if (link && !link.startsWith('http')) {
-                  link = 'https://buzzheavier.com/' + link.replace(/^\/+/, '');
-                }
-              }
-
-              // Build our own download page URL (shareable, works for anyone)
+              // Build our download page URL
               const dlParams = new URLSearchParams({ name: file.name, size: file.size, url: link });
               if (this.note) dlParams.set('note', this.note);
               const ourLink = 'download/index.html?' + dlParams.toString();
 
-              const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-              const speed   = this.humanSize(file.size / (elapsed || 1)) + '/s';
               taskRef.progress  = 100;
               taskRef.status    = 'completed';
-              taskRef.statsText = `Done in ${elapsed}s (${speed})`;
+              taskRef.statsText = 'Done!';
               this.completed.push({ name: file.name, link: ourLink, sizeText: this.humanSize(file.size) });
 
-              // Save to history
               const history = JSON.parse(localStorage.getItem('fum_history') || '[]');
               history.unshift({
                 id: 'local_' + Date.now() + '_' + idx,
@@ -286,19 +203,21 @@
               localStorage.setItem('fum_history', JSON.stringify(history.slice(0, 500)));
 
             } catch (err) {
-              taskRef.status    = 'error';
-              taskRef.statsText = `Error: ${err.message}`;
-              taskRef.progress  = 100;
+              if (err.message !== 'cancelled') {
+                taskRef.status    = 'error';
+                taskRef.statsText = 'Error: ' + err.message;
+                taskRef.progress  = 100;
+              }
             }
           }
 
           this.uploading = false;
-          input.value   = '';
+          input.value = '';
         },
 
         cancel() {
-          this._xhrs.forEach(x => { try { x.abort(); } catch(_) {} });
-          this._xhrs = [];
+          this._uploaders.forEach(u => u.abort());
+          this._uploaders = [];
         },
 
         copyLinks() {
@@ -312,6 +231,154 @@
         }
       };
     }
-  </script>
+
+    // ── Multipart uploader (mirrors buzzheavier's own BusUploader) ──
+    class BuzzUploader {
+      constructor(file, opts) {
+        this.file       = file;
+        this.workerUrl  = opts.workerUrl;
+        this.note       = opts.note || '';
+        this.authToken  = opts.authToken || null;
+        this.onProgress = opts.onProgress || (() => {});
+        this.partSize   = 100 * 1024 * 1024;   // 100 MB per part (same as BusUploader)
+        this.concurrency= 3;
+        this.maxRetries = 5;
+        this._aborted   = false;
+        this._xhrs      = [];
+        this._startTime = 0;
+        this._uploaded  = 0;
+      }
+
+      abort() {
+        this._aborted = true;
+        this._xhrs.forEach(x => { try { x.abort(); } catch(_) {} });
+      }
+
+      humanSize(b) {
+        if (!b) return '0 B';
+        const u = ['B','KB','MB','GB','TB'];
+        const i = Math.floor(Math.log(b) / Math.log(1024));
+        return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + u[i];
+      }
+
+      authHeaders() {
+        return this.authToken ? { Authorization: 'Bearer ' + this.authToken } : {};
+      }
+
+      // Step 1: init upload via worker → buzzheavier /api/upload
+      async initUpload() {
+        const body = { name: this.file.name };
+        if (this.note) body.note = this.note;
+
+        const res = await fetch(this.workerUrl + '/api/initupload', {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json', ...this.authHeaders() },
+          body   : JSON.stringify(body),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || json.error || 'Init failed: ' + res.status);
+        this.uploadId = json.data.id;
+        this.location = json.data.location;   // presigned URL — direct from browser, no CORS issue
+      }
+
+      // Step 2: upload one part directly to the presigned location URL
+      uploadPart(chunk, partNumber, onProgress, retries = 0) {
+        return new Promise((resolve, reject) => {
+          if (this._aborted) return reject(new Error('cancelled'));
+          const xhr = new XMLHttpRequest();
+          this._xhrs.push(xhr);
+          xhr.open('PATCH', this.location, true);
+          xhr.setRequestHeader('Upload-Length', String(chunk.size));
+          xhr.setRequestHeader('Upload-Part-Number', String(partNumber));
+
+          xhr.upload.onprogress = e => { if (e.lengthComputable) onProgress(e.loaded); };
+
+          xhr.onload = () => {
+            this._xhrs = this._xhrs.filter(x => x !== xhr);
+            if (xhr.status === 200 || xhr.status === 204) {
+              resolve();
+            } else if (xhr.status >= 500 && retries < this.maxRetries) {
+              setTimeout(() => this.uploadPart(chunk, partNumber, onProgress, retries + 1).then(resolve).catch(reject), 3000);
+            } else {
+              reject(new Error('Part ' + partNumber + ' failed: HTTP ' + xhr.status));
+            }
+          };
+          xhr.onerror = () => {
+            this._xhrs = this._xhrs.filter(x => x !== xhr);
+            if (retries < this.maxRetries) {
+              setTimeout(() => this.uploadPart(chunk, partNumber, onProgress, retries + 1).then(resolve).catch(reject), 3000);
+            } else {
+              reject(new Error('Part ' + partNumber + ' network error'));
+            }
+          };
+          xhr.onabort = () => { this._xhrs = this._xhrs.filter(x => x !== xhr); reject(new Error('cancelled')); };
+          xhr.send(chunk);
+        });
+      }
+
+      // Step 2 (all parts): split file and upload with concurrency
+      async uploadAllParts() {
+        const totalParts  = Math.ceil(this.file.size / this.partSize) || 1;
+        const partLoaded  = new Array(totalParts).fill(0);
+
+        const updateStats = () => {
+          const totalUp = partLoaded.reduce((s, v) => s + v, 0);
+          this._uploaded = totalUp;
+          const elapsed  = (Date.now() - this._startTime) / 1000;
+          const pct      = Math.min(99, Math.round(totalUp / this.file.size * 100));
+          const speed    = elapsed > 0 ? this.humanSize(totalUp / elapsed) + '/s' : '';
+          this.onProgress(pct, this.humanSize(totalUp) + ' / ' + this.humanSize(this.file.size) + (speed ? ' — ' + speed : ''));
+        };
+
+        const queue = Array.from({ length: totalParts }, (_, i) => i);
+        let qi = 0, firstErr = null;
+
+        const worker = async () => {
+          while (qi < queue.length) {
+            if (this._aborted || firstErr) return;
+            const i = qi++;
+            const partNumber = i + 1;
+            const start = i * this.partSize;
+            const end   = Math.min(start + this.partSize, this.file.size);
+            const chunk = this.file.slice(start, end);
+            try {
+              await this.uploadPart(chunk, partNumber, loaded => { partLoaded[i] = loaded; updateStats(); });
+              partLoaded[i] = end - start;
+              updateStats();
+            } catch (err) {
+              if (!firstErr) firstErr = err;
+            }
+          }
+        };
+
+        const workers = Array.from({ length: Math.min(this.concurrency, totalParts) }, () => worker());
+        await Promise.all(workers);
+        if (firstErr) throw firstErr;
+      }
+
+      // Step 3: complete upload via worker → buzzheavier /api/upload/{id}
+      async completeUpload() {
+        const res  = await fetch(this.workerUrl + '/api/completeupload/' + this.uploadId, {
+          method : 'POST',
+          headers: this.authHeaders(),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || json.error || 'Complete failed: ' + res.status);
+        return 'https://buzzheavier.com/' + json.data.id +
+               '?_id=' + json.data.id + '&_loc=' + (json.data.locationId || '');
+      }
+
+      async start() {
+        this._startTime = Date.now();
+        this.onProgress(0, 'Initialising…');
+        await this.initUpload();
+        if (this._aborted) throw new Error('cancelled');
+        await this.uploadAllParts();
+        if (this._aborted) throw new Error('cancelled');
+        this.onProgress(99, 'Completing…');
+        return await this.completeUpload();
+      }
+    }
+</script>
 </body>
 </html>
