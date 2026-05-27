@@ -51,26 +51,64 @@ export default {
       });
     }
 
+    // ── GET /download/{fileId} ──
+    // Streams the actual file from w.buzzheavier.com to the browser
+    if (request.method === 'GET' && url.pathname.startsWith('/download/')) {
+      const fileId  = url.pathname.replace('/download/', '').split('?')[0];
+
+      // Try w.buzzheavier.com (CDN endpoint) first
+      let upstream = await fetch(`https://w.buzzheavier.com/${fileId}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible)' },
+      });
+
+      // Fallback: buzzheavier.com direct
+      if (!upstream.ok) {
+        upstream = await fetch(`https://buzzheavier.com/${fileId}`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
+            'Accept'    : '*/*',
+          },
+          redirect: 'follow',
+        });
+      }
+
+      if (!upstream.ok) {
+        return new Response(JSON.stringify({ error: `upstream ${upstream.status}` }), {
+          status : upstream.status,
+          headers: { 'Content-Type': 'application/json', ...CORS },
+        });
+      }
+
+      // Pass through the file stream with CORS headers
+      const headers = new Headers(upstream.headers);
+      Object.entries(CORS).forEach(([k, v]) => headers.set(k, v));
+      // Ensure it triggers download in browser
+      if (!headers.get('Content-Disposition')) {
+        headers.set('Content-Disposition', `attachment`);
+      }
+
+      return new Response(upstream.body, { status: 200, headers });
+    }
+
     // ── GET /page/{fileId} ──
-    // Fetches buzzheavier's HTML download page server-side (bypasses their CORS block)
+    // Fetches buzzheavier HTML page with browser headers
     if (request.method === 'GET' && url.pathname.startsWith('/page/')) {
       const fileId  = url.pathname.replace('/page/', '').split('?')[0];
-      const buzzUrl = `https://buzzheavier.com/${fileId}`;
 
-      const upstream = await fetch(buzzUrl, {
+      const upstream = await fetch(`https://buzzheavier.com/${fileId}`, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36',
-          'Accept'    : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'User-Agent'     : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept'         : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control'  : 'no-cache',
         },
+        redirect: 'follow',
       });
 
       const html = await upstream.text();
       return new Response(html, {
         status : upstream.status,
-        headers: {
-          'Content-Type': 'text/html; charset=utf-8',
-          ...CORS,
-        },
+        headers: { 'Content-Type': 'text/html; charset=utf-8', ...CORS },
       });
     }
 
