@@ -257,8 +257,9 @@
         return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + u[i];
       }
 
-      // Single PUT to worker → w.buzzheavier.com/{filename}
-      // Progress tracked via XHR upload events
+      // Single PUT directly to w.buzzheavier.com/{filename} — bypasses the Worker entirely
+      // so there are no Cloudflare body-size or buffering limits.
+      // The Worker is only used for the /page/ download-page relay.
       uploadFile() {
         return new Promise((resolve, reject) => {
           if (this._aborted) return reject(new Error('cancelled'));
@@ -266,8 +267,8 @@
           const xhr = new XMLHttpRequest();
           this._xhr = xhr;
 
-          // Build the worker URL: PUT /api/upload/{filename}?note=...
-          const endpoint = new URL(this.workerUrl + '/api/upload/' + encodeURIComponent(this.file.name));
+          // PUT directly to BuzzHeavier — no Worker in the upload path
+          const endpoint = new URL('https://w.buzzheavier.com/' + encodeURIComponent(this.file.name));
           if (this.note) {
             // BuzzHeavier requires the note to be base64-encoded
             endpoint.searchParams.set('note', btoa(unescape(encodeURIComponent(this.note))));
