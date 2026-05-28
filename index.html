@@ -257,8 +257,14 @@
         return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + u[i];
       }
 
-      // PUT through the Worker (needed for CORS) → w.buzzheavier.com/{filename}
-      // Content-Length is set explicitly so BuzzHeavier knows the full file size upfront.
+      // Two-phase upload:
+      //   Phase 1 (tracked): browser → Cloudflare Worker via XHR (progress 0-99%)
+      //   Phase 2 (server-side): Worker buffers body then PUT to w.buzzheavier.com
+      //
+      // Streaming the body through the Worker subrequest stalls at ~1 MB due to
+      // backpressure between Cloudflare and BuzzHeavier. Buffering in arrayBuffer()
+      // on the Worker side sidesteps this entirely — the subrequest is a plain PUT
+      // with a known Content-Length, which BuzzHeavier handles reliably.
       uploadFile() {
         return new Promise((resolve, reject) => {
           if (this._aborted) return reject(new Error('cancelled'));
@@ -267,21 +273,23 @@
           this._xhr = xhr;
 
           const endpoint = new URL(this.workerUrl + '/api/upload/' + encodeURIComponent(this.file.name));
-          if (this.note) {
-            endpoint.searchParams.set('note', btoa(unescape(encodeURIComponent(this.note))));
-          }
+          if (this.note) endpoint.searchParams.set('note', btoa(unescape(encodeURIComponent(this.note))));
 
           xhr.open('PUT', endpoint.toString(), true);
           if (this.authToken) xhr.setRequestHeader('Authorization', 'Bearer ' + this.authToken);
-          // Tell BuzzHeavier the exact file size — without this it may cut off large uploads early
-          xhr.setRequestHeader('X-File-Size', String(this.file.size));
 
+          // Phase 1 — browser is sending to Cloudflare
           xhr.upload.onprogress = e => {
             if (!e.lengthComputable) return;
             const elapsed = (Date.now() - this._startTime) / 1000;
-            const pct     = Math.min(99, Math.round(e.loaded / e.total * 100));
-            const speed   = elapsed > 0 ? this.humanSize(e.loaded / elapsed) + '/s' : '';
-            this.onProgress(pct, this.humanSize(e.loaded) + ' / ' + this.humanSize(e.total) + (speed ? ' — ' + speed : ''));
+            const speed   = elapsed > 0 ? ' — ' + this.humanSize(e.loaded / elapsed) + '/s' : '';
+            const pct     = Math.round(e.loaded / e.total * 99); // cap at 99; 100 = done
+            this.onProgress(pct, this.humanSize(e.loaded) + ' / ' + this.humanSize(e.total) + speed);
+          };
+
+          // Phase 2 — browser finished sending; Worker is now forwarding to BuzzHeavier
+          xhr.upload.onload = () => {
+            this.onProgress(99, 'Saving to cloud…');
           };
 
           xhr.onload = () => {
@@ -290,17 +298,17 @@
               try {
                 const json = JSON.parse(xhr.responseText);
                 const id   = json.data?.id || json.id;
-                if (!id) return reject(new Error('Upload succeeded but no file ID in response'));
+                if (!id) return reject(new Error('Upload ok but no file ID — response: ' + xhr.responseText.slice(0, 300)));
                 resolve('https://buzzheavier.com/' + id);
               } catch (e) {
-                reject(new Error('Could not parse response: ' + xhr.responseText.slice(0, 200)));
+                reject(new Error('Could not parse response: ' + xhr.responseText.slice(0, 300)));
               }
             } else {
-              reject(new Error('Upload failed: HTTP ' + xhr.status + ' — ' + xhr.responseText.slice(0, 200)));
+              reject(new Error('HTTP ' + xhr.status + ' — ' + xhr.responseText.slice(0, 300)));
             }
           };
 
-          xhr.onerror = () => { this._xhr = null; reject(new Error('Network error during upload')); };
+          xhr.onerror = () => { this._xhr = null; reject(new Error('Network error — check browser console for details')); };
           xhr.onabort = () => { this._xhr = null; reject(new Error('cancelled')); };
 
           xhr.send(this.file);
