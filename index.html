@@ -277,6 +277,10 @@
 
           xhr.open('PUT', endpoint.toString(), true);
           if (this.authToken) xhr.setRequestHeader('Authorization', 'Bearer ' + this.authToken);
+          // Browsers can't set Content-Length directly — send file size as a
+          // custom header so the Worker can promote it to Content-Length on the
+          // BuzzHeavier subrequest (BuzzHeavier returns 411 without it).
+          xhr.setRequestHeader('X-File-Size', String(this.file.size));
 
           // Phase 1 — browser is sending to Cloudflare
           xhr.upload.onprogress = e => {
