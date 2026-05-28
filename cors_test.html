@@ -1,0 +1,98 @@
+<div style="padding: 1.5rem 0;">
+  <h2 class="sr-only">CORS-test för direkt uppladdning till BuzzHeavier</h2>
+
+  <p style="font-size:14px; color:var(--color-text-secondary); margin:0 0 1.5rem;">
+    Välj en liten testfil (någon MB) — om BuzzHeavier tillåter CORS kan du ladda upp direkt utan proxy, utan storleksgräns.
+  </p>
+
+  <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:1.5rem;">
+    <input type="file" id="file" style="flex:1; min-width:0;" />
+    <button id="btn" onclick="runTest()" style="white-space:nowrap;">Kör test ↗</button>
+  </div>
+
+  <div id="result" style="display:none; border-radius:var(--border-radius-lg); border:0.5px solid var(--color-border-tertiary); overflow:hidden;">
+    <div id="header" style="padding:1rem 1.25rem; display:flex; align-items:center; gap:10px;">
+      <i id="icon" class="ti" style="font-size:22px;" aria-hidden="true"></i>
+      <span id="verdict" style="font-weight:500; font-size:15px;"></span>
+    </div>
+    <div id="details" style="padding:0 1.25rem 1rem; font-size:13px; color:var(--color-text-secondary); line-height:1.7; border-top:0.5px solid var(--color-border-tertiary);"></div>
+  </div>
+
+  <div id="progress" style="display:none; margin-top:1rem;">
+    <div style="height:4px; background:var(--color-background-secondary); border-radius:4px; overflow:hidden;">
+      <div id="bar" style="height:100%; width:0%; background:var(--color-text-info); transition:width 0.2s;"></div>
+    </div>
+    <p id="prog-text" style="font-size:12px; color:var(--color-text-secondary); margin:6px 0 0;"></p>
+  </div>
+</div>
+
+<script>
+async function runTest() {
+  const file = document.getElementById('file').files[0];
+  if (!file) { alert('Välj en fil först.'); return; }
+
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('progress').style.display = 'block';
+  document.getElementById('bar').style.width = '0%';
+  document.getElementById('prog-text').textContent = 'Laddar upp direkt till w.buzzheavier.com…';
+  document.getElementById('btn').disabled = true;
+
+  const url = 'https://w.buzzheavier.com/' + encodeURIComponent(file.name);
+
+  try {
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', url, true);
+      xhr.upload.onprogress = e => {
+        if (!e.lengthComputable) return;
+        const pct = Math.round(e.loaded / e.total * 100);
+        document.getElementById('bar').style.width = pct + '%';
+        document.getElementById('prog-text').textContent = pct + '% — ' + fmt(e.loaded) + ' / ' + fmt(e.total);
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            resolve(json);
+          } catch(e) { resolve({ raw: xhr.responseText }); }
+        } else {
+          reject(new Error('HTTP ' + xhr.status + ': ' + xhr.responseText.slice(0, 200)));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Nätverksfel — troligtvis CORS-blockering'));
+      xhr.onabort = () => reject(new Error('Avbruten'));
+      xhr.send(file);
+    });
+
+    show(true, 'Direkt uppladdning fungerar! Ingen proxy behövs.',
+      'BuzzHeavier tillåter CORS från din domän. Du kan ladda upp obegränsat stora filer direkt utan Worker eller Render-server. Byt WORKER_URL i config.js till en tom sträng och uppdatera index.html med direkt-upload-koden.');
+
+  } catch(err) {
+    const isCORS = err.message.toLowerCase().includes('nätverk') || err.message.toLowerCase().includes('network');
+    show(false,
+      isCORS ? 'CORS blockerad — proxy krävs.' : 'Fel: ' + err.message,
+      isCORS
+        ? 'BuzzHeavier tillåter inte anrop direkt från webbläsaren. Du behöver en proxy (Render, Railway eller liknande) för att kringgå CORS-begränsningen.'
+        : 'Oväntat fel. Kontrollera browserkonsolen (F12) för mer info.');
+  }
+
+  document.getElementById('progress').style.display = 'none';
+  document.getElementById('btn').disabled = false;
+}
+
+function show(ok, verdict, detail) {
+  const res = document.getElementById('result');
+  res.style.display = 'block';
+  document.getElementById('icon').className = 'ti ' + (ok ? 'ti-circle-check' : 'ti-circle-x');
+  document.getElementById('icon').style.color = ok ? 'var(--color-text-success)' : 'var(--color-text-danger)';
+  document.getElementById('verdict').textContent = verdict;
+  document.getElementById('header').style.background = ok ? 'var(--color-background-success)' : 'var(--color-background-danger)';
+  document.getElementById('details').textContent = detail;
+}
+
+function fmt(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(2) + ' MB';
+}
+</script>
