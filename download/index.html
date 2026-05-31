@@ -77,7 +77,7 @@
             || decoded.replace(/.*buzzheavier\.com\//, '').split('?')[0].trim();
 
           if (!this.fileId) { this.error = 'Ogiltig nedladdningslänk.'; return; }
-          if (name) document.title = name + ' — Free Upload Manager';
+          if (name) document.title = name + ' - Free Upload Manager';
 
           // Auto-resize from srcdoc postMessage
           window.addEventListener('message', e => {
