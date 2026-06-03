@@ -234,7 +234,7 @@
       };
     }
 
-    // ── Uploader — uses BuzzHeavier's new PUT-stream API (w.buzzheavier.com) ──
+    // ── Uploader - uses BuzzHeavier's new PUT-stream API (w.buzzheavier.com) ──
     class BuzzUploader {
       constructor(file, opts) {
         this.file       = file;
@@ -260,12 +260,12 @@
       }
 
       // Two-phase upload:
-      //   Phase 1 (tracked): browser → Cloudflare Worker via XHR (progress 0-99%)
-      //   Phase 2 (server-side): Worker buffers body then PUT to w.buzzheavier.com
+      //   Phase 1 (tracked): browser → Oracle cloud (progress 0-99%)
+      //   Phase 2 (server-side): Oracle cloud Worker buffers body then PUT to w.buzzheavier.com
       //
       // Streaming the body through the Worker subrequest stalls at ~1 MB due to
-      // backpressure between Cloudflare and BuzzHeavier. Buffering in arrayBuffer()
-      // on the Worker side sidesteps this entirely — the subrequest is a plain PUT
+      // backpressure between Oracle cloud and BuzzHeavier. Buffering in arrayBuffer()
+      // on the Worker side sidesteps this entirely - the subrequest is a plain PUT
       // with a known Content-Length, which BuzzHeavier handles reliably.
       uploadFile() {
         return new Promise((resolve, reject) => {
@@ -279,12 +279,12 @@
 
           xhr.open('PUT', endpoint.toString(), true);
           if (this.authToken) xhr.setRequestHeader('Authorization', 'Bearer ' + this.authToken);
-          // Browsers can't set Content-Length directly — send file size as a
+          // Browsers can't set Content-Length directly - send file size as a
           // custom header so the Worker can promote it to Content-Length on the
           // BuzzHeavier subrequest (BuzzHeavier returns 411 without it).
           xhr.setRequestHeader('X-File-Size', String(this.file.size));
 
-          // Phase 1 — browser is sending to Cloudflare
+          // Phase 1 - browser is sending to Oracle cloud
           xhr.upload.onprogress = e => {
             if (!e.lengthComputable) return;
             const elapsed = (Date.now() - this._startTime) / 1000;
@@ -293,7 +293,7 @@
             this.onProgress(pct, this.humanSize(e.loaded) + ' / ' + this.humanSize(e.total) + speed);
           };
 
-          // Phase 2 — browser finished sending; Worker is now forwarding to BuzzHeavier
+          // Phase 2 - browser finished sending; Worker is now forwarding to BuzzHeavier
           xhr.upload.onload = () => {
             this.onProgress(99, 'Saving to cloud…');
           };
