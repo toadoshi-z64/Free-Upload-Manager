@@ -4,7 +4,7 @@ A fast, minimal and reliable file hosting frontend that uploads directly to [Buz
 
 ## Features
 
-* It [fucking works](motherfuckingwebsite.com)
+* It [fucking works](https://motherfuckingwebsite.com)
 
 ## How it works
 
