@@ -106,7 +106,7 @@
         <template x-for="(item, i) in completed" :key="'done' + i">
           <li class="text-sm py-1">
             <a :href="item.link" target="_blank" class="hover:underline text-primary"
-              x-text="`${item.name} — ${item.sizeText}`"></a>
+              x-text="`${item.name} - ${item.sizeText}`"></a>
           </li>
         </template>
       </ul>
@@ -288,7 +288,7 @@
           xhr.upload.onprogress = e => {
             if (!e.lengthComputable) return;
             const elapsed = (Date.now() - this._startTime) / 1000;
-            const speed   = elapsed > 0 ? ' — ' + this.humanSize(e.loaded / elapsed) + '/s' : '';
+            const speed   = elapsed > 0 ? ' - ' + this.humanSize(e.loaded / elapsed) + '/s' : '';
             const pct     = Math.round(e.loaded / e.total * 99); // cap at 99; 100 = done
             this.onProgress(pct, this.humanSize(e.loaded) + ' / ' + this.humanSize(e.total) + speed);
           };
@@ -304,17 +304,17 @@
               try {
                 const json = JSON.parse(xhr.responseText);
                 const id   = json.data?.id || json.id;
-                if (!id) return reject(new Error('Upload ok but no file ID — response: ' + xhr.responseText.slice(0, 300)));
+                if (!id) return reject(new Error('Upload ok but no file ID - response: ' + xhr.responseText.slice(0, 300)));
                 resolve('https://buzzheavier.com/' + id);
               } catch (e) {
                 reject(new Error('Could not parse response: ' + xhr.responseText.slice(0, 300)));
               }
             } else {
-              reject(new Error('HTTP ' + xhr.status + ' — ' + xhr.responseText.slice(0, 300)));
+              reject(new Error('HTTP ' + xhr.status + ' - ' + xhr.responseText.slice(0, 300)));
             }
           };
 
-          xhr.onerror = () => { this._xhr = null; reject(new Error('Network error — check browser console for details')); };
+          xhr.onerror = () => { this._xhr = null; reject(new Error('Network error - check browser console for details')); };
           xhr.onabort = () => { this._xhr = null; reject(new Error('cancelled')); };
 
           xhr.send(this.file);
