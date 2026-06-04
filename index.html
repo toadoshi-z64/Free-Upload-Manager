@@ -191,7 +191,7 @@
               // Build our download page URL
               const dlParams = new URLSearchParams({ name: file.name, size: file.size, url: link });
               if (this.note) dlParams.set('note', this.note);
-              const ourLink = '/download/index.html?' + dlParams.toString();
+              const ourLink = 'https://freeuploadmanager.org/download/index.html?' + dlParams.toString();
 
               taskRef.progress  = 100;
               taskRef.status    = 'completed';
