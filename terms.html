@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms - Free Upload Manager</title>
+  <link rel="icon" type="image/png" href="../images/logo.png">
+  <link rel="stylesheet" href="../css/style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="min-h-screen p-4" x-data="{accountId: localStorage.getItem('fum_account_id') || ''}">
+
+  <!-- Logo + Header -->
+  <div class="text-center mb-1">
+    <a href="../index.html" class="inline-flex items-center gap-3 no-underline">
+      <img src="../images/logo.png" alt="Free Upload Manager" class="h-12 w-auto">
+      <h1 class="text-3xl font-bold mt-1 mb-0 text-foreground">FREE UPLOAD MANAGER</h1>
+    </a>
+    <p class="mt-0 text-muted-foreground">Fast and reliable file hosting service.</p>
+  </div>
+
+  <!-- Navbar -->
+  <div class="text-center mb-4 text-sm">
+    <a href="../index.html" class="hover:underline font-medium">Index</a>
+    <span class="mx-1">|</span>
+    <a href="../help/index.html" class="hover:underline text-primary">Help</a>
+    <span class="mx-1">|</span>
+    <a href="../discord.html" class="hover:underline text-primary">Discord</a>
+    <span class="mx-1">|</span>
+    <a href="../terms.html" class="hover:underline text-primary">Terms</a>
+    <span class="mx-1">|</span>
+    <template x-if="accountId">
+      <span>
+        <a href="../account/index.html" class="hover:underline text-primary">My Account</a>
+        <span class="mx-1">|</span>
+        <button @click="localStorage.removeItem('fum_account_id'); accountId=''" class="hover:underline text-primary bg-transparent border-none p-0 cursor-pointer text-sm">Logout</button>
+      </span>
+    </template>
+    <template x-if="!accountId">
+      <a href="../auth/index.html" class="hover:underline text-primary">Login / Signup</a>
+    </template>
+  </div>
+
+  <!-- Main content -->
+  <div class="mx-auto max-w-[60rem]">
+    <h2 class="text-xl font-bold mb-4">Terms of service</h2>
+    <p class="text-muted-foreground">By using freeuploadmanager.org you agree to the following terms, and you must follow Buzzheaviers terms of service too.</p>
+    <div class="space-y-4 text-sm">
+    <div>
+    </div>
+      <div>
+        <p class="font-bold mb-1">The following types of content are strictly prohibited:</p>
+        <p class="text-muted-foreground">Child Exploitation: Videos, images, or audio depicting abuse or inappropriate touching of minors. Any such content will be removed and reported to the National Center for Missing and Exploited Children.</p>
+      </div>
+  <div>
+    <p class="text-muted-foreground">Terrorism: Content that promotes or glorifies acts of terrorism.</p>
+  </div>
+  <div>
+    <p class="text-muted-foreground">Extreme Gore: Graphic and shocking content depicting severe harm to humans or animals.</p>
+  </div>
+  <div>
+    <p class="text-muted-foreground">Terrorism: Content that promotes or glorifies acts of terrorism.</p>
+  </div>
+  <div>
+    <p class="text-muted-foreground">Malware/Viruses: Software designed to harm computer systems.</p>
+  </div>
+  <div>
+    <p class="text-muted-foreground">Doxing: Posting private information about an individual or organization with malicious intent.</p>
+  </div>
+
+      <div>
+        <h3 class="font-bold mb-1">IMPORTANT</h3>
+        <p class="text-muted-foreground">All files you upload is your responsability.</p>
+        <p class="text-muted-foreground">All the files are being hosted on buzzheavier, so if you need to report abuse, contact them at abuse@buzzheavier.com</p>
+      </div>
+
+     
+    </div>
+  </div>
+
+</body>
+</html>
