@@ -9,27 +9,37 @@
 
 <url>
   <loc>https://freeuploadmanager.org/</loc>
-  <lastmod>2026-05-28T06:36:49+00:00</lastmod>
+  <lastmod>2026-06-04T12:44:06+00:00</lastmod>
   <priority>1.00</priority>
 </url>
 <url>
   <loc>https://freeuploadmanager.org/index.html</loc>
-  <lastmod>2026-05-28T06:36:49+00:00</lastmod>
+  <lastmod>2026-06-04T12:44:06+00:00</lastmod>
   <priority>0.80</priority>
 </url>
 <url>
   <loc>https://freeuploadmanager.org/help/index.html</loc>
-  <lastmod>2026-05-28T06:36:49+00:00</lastmod>
+  <lastmod>2026-06-04T12:44:06+00:00</lastmod>
+  <priority>0.80</priority>
+</url>
+<url>
+  <loc>https://freeuploadmanager.org/discord.html</loc>
+  <lastmod>2026-06-04T12:44:06+00:00</lastmod>
+  <priority>0.80</priority>
+</url>
+<url>
+  <loc>https://freeuploadmanager.org/terms.html</loc>
+  <lastmod>2026-06-04T12:44:06+00:00</lastmod>
   <priority>0.80</priority>
 </url>
 <url>
   <loc>https://freeuploadmanager.org/account/index.html</loc>
-  <lastmod>2026-05-28T06:36:49+00:00</lastmod>
+  <lastmod>2026-06-04T12:44:06+00:00</lastmod>
   <priority>0.80</priority>
 </url>
 <url>
   <loc>https://freeuploadmanager.org/auth/index.html</loc>
-  <lastmod>2026-05-28T06:36:49+00:00</lastmod>
+  <lastmod>2026-06-04T12:44:06+00:00</lastmod>
   <priority>0.80</priority>
 </url>
 
