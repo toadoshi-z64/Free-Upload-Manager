@@ -91,6 +91,79 @@
       return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + u[i];
     }
 
+    /* ------------------------------------------------------------------ *
+     *  Ad-stripping for FileDitch HTML
+     * ------------------------------------------------------------------ */
+    function stripAds(html) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      // 1. Remove ALL <script> tags — kills ad loaders, pop-up scripts, trackers
+      doc.querySelectorAll('script').forEach(el => el.remove());
+
+      // 2. Remove ALL <iframe> tags inside the page (ad iframes)
+      doc.querySelectorAll('iframe').forEach(el => el.remove());
+
+      // 3. Remove known ad/tracker tags
+      doc.querySelectorAll(
+        'ins, [id*="ad"], [id*="banner"], [id*="popup"], [id*="pop"], [id*="overlay"], ' +
+        '[class*="ad-"], [class*="-ad"], [class*="ads-"], [class*="advert"], ' +
+        '[class*="banner"], [class*="popup"], [class*="pop-up"], [class*="overlay"], ' +
+        '[class*="modal"], [class*="interstitial"], [data-ad], [data-ad-slot], ' +
+        'ins.adsbygoogle'
+      ).forEach(el => el.remove());
+
+      // 4. Remove <link> preloads / stylesheets pointing to external ad networks
+      doc.querySelectorAll('link[href]').forEach(el => {
+        const href = el.getAttribute('href') || '';
+        if (/googlesyndication|doubleclick|adnxs|popads|popcash|mgid|taboola|outbrain/i.test(href)) {
+          el.remove();
+        }
+      });
+
+      // 5. Inject anti-popup + auto-click-download guard script
+      //    Runs before anything else (no other scripts remain, but just in case)
+      const guard = doc.createElement('script');
+      guard.textContent = `(function(){
+        // Block any new window / tab from opening
+        window.open = function(url, target, features) {
+          // Only allow blob: or data: downloads
+          if (url && (url.startsWith('blob:') || url.startsWith('data:'))) {
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = '';
+            a.click();
+          }
+          return null;
+        };
+
+        // Block window.location redirects to ad pages
+        var _locDesc = Object.getOwnPropertyDescriptor(window, 'location');
+        try {
+          Object.defineProperty(window, 'location', {
+            get: function(){ return _locDesc ? _locDesc.get.call(window) : location; },
+            set: function(v){
+              // Only allow same-origin or blob navigations
+              try {
+                var u = new URL(v, window.location.href);
+                if (u.origin === window.location.origin || u.protocol === 'blob:') {
+                  _locDesc ? (_locDesc.set && _locDesc.set.call(window, v)) : void 0;
+                }
+              } catch(e){}
+            }
+          });
+        } catch(e){}
+
+        // Report iframe height to parent
+        function sh(){ parent.postMessage({type:'iframeHeight', h: document.body.scrollHeight}, '*'); }
+        new ResizeObserver(sh).observe(document.body);
+        sh();
+      })();`;
+      doc.head.insertBefore(guard, doc.head.firstChild);
+
+      return '<!DOCTYPE html>' + doc.documentElement.outerHTML;
+    }
+
     function dlApp() {
       return {
         accountId: localStorage.getItem('fum_account_id') || '',
@@ -138,7 +211,6 @@
 
           } else if (rawUrl.includes('fileditch')) {
             this.provider = 'fileditch';
-            // Embed FileDitch page in iframe so downloads happen on FUM
             await this.loadFileDitchPage();
 
           } else {
@@ -146,13 +218,55 @@
           }
         },
 
+        /* ---------------------------------------------------------------- *
+         *  FileDitch — fetch via Worker proxy, strip ads, embed as srcdoc
+         *  Sandbox: NO allow-popups, NO allow-top-navigation
+         * ---------------------------------------------------------------- */
         async loadFileDitchPage() {
-          const frame = document.getElementById('fd-frame');
+          const frame  = document.getElementById('fd-frame');
           if (!frame) return;
-          // Embed the FileDitch file page; allow-downloads lets the download button work
-          frame.src = this.rawUrl;
-          frame.setAttribute('sandbox',
-            'allow-scripts allow-downloads allow-forms allow-same-origin allow-popups');
+
+          const WORKER = (typeof FUM_CONFIG !== 'undefined') ? FUM_CONFIG.WORKER_URL : '';
+
+          // Listen for height messages from the cleaned iframe
+          window.addEventListener('message', e => {
+            if (e.data?.type === 'iframeHeight') {
+              frame.style.height        = (e.data.h + 20) + 'px';
+              frame.style.marginTop     = '0';
+              frame.style.marginBottom  = '0';
+            }
+          });
+
+          try {
+            // Reuse the same Worker proxy endpoint that already serves BuzzHeavier pages.
+            // The Worker just fetches the URL server-side and returns the HTML,
+            // bypassing CORS and letting us manipulate it here.
+            const proxyUrl = `${WORKER}/page/fd?url=${encodeURIComponent(this.rawUrl)}`;
+            const res = await fetch(proxyUrl);
+            if (!res.ok) throw new Error('worker ' + res.status);
+
+            const html = await res.text();
+
+            // Strip all ads, popups, external scripts before embedding
+            frame.srcdoc = stripAds(html);
+
+            // Sandbox: scripts allowed (for download button), downloads allowed,
+            // forms allowed — but NO popups, NO top-navigation
+            frame.setAttribute('sandbox',
+              'allow-scripts allow-downloads allow-forms allow-same-origin');
+
+            frame.style.height       = '400px';
+            frame.style.marginTop    = '0';
+            frame.style.marginBottom = '0';
+
+          } catch (err) {
+            // Fallback: direct embed without allow-popups (blocks most ad tabs)
+            console.warn('Worker proxy failed, falling back to direct embed:', err);
+            frame.src = this.rawUrl;
+            frame.setAttribute('sandbox',
+              'allow-scripts allow-downloads allow-forms allow-same-origin');
+            // No allow-popups = popup ads are blocked even in fallback
+          }
         },
 
         async loadBuzzPage() {
