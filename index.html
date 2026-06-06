@@ -68,7 +68,7 @@
         <button @click="provider = 'buzzheavier'"
           :class="provider === 'buzzheavier' ? 'border-foreground font-medium' : 'border-border text-muted-foreground'"
           class="px-3 py-1 border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer transition-colors">
-          BuzzHeavier
+          Buzzheavier
         </button>
         <button @click="provider = 'fileditch'"
           :class="provider === 'fileditch' ? 'border-foreground font-medium' : 'border-border text-muted-foreground'"
@@ -77,10 +77,10 @@
         </button>
       </div>
       <p class="text-xs text-muted-foreground mb-1" x-show="provider === 'buzzheavier'">
-        No file size limit &nbsp;·&nbsp; Fast but more temporary storage
+        No file size limit &nbsp;·&nbsp; Fast but more temporary storage, zero log policy
       </p>
       <p class="text-xs text-muted-foreground mb-1" x-show="provider === 'fileditch'" x-cloak>
-        Files kept longer &nbsp;·&nbsp; Max 25 GB &nbsp;·&nbsp; No auth needed &nbsp;·&nbsp; Blocks executables (.exe, .js, .py…)
+        Files kept longer &nbsp;·&nbsp; Max 25 GB &nbsp;·&nbsp; faster uploads &nbsp;·&nbsp; Blocks executables (.exe, .js, .py…)
       </p>
 
       <!-- Buttons -->
