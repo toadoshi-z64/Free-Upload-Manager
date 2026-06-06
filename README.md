@@ -1,6 +1,6 @@
 # Free Upload Manager
 
-A fast, minimal and reliable file hosting frontend that uploads directly to [BuzzHeavier](https://buzzheavier.com)'s API
+A fast, minimal and reliable file hosting frontend that uploads directly to [Buzzheavier](https://buzzheavier.com)'s and [FileDitch](https://fileditch.com)'s API
 
 ## Features
 
