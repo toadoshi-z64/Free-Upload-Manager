@@ -48,14 +48,12 @@
 
   <div class="mx-auto max-w-[60rem]">
 
-    <!-- Error state -->
     <div x-show="error" class="mt-4 text-sm">
       <p class="text-destructive" x-text="error"></p>
       <a href="../index.html" class="text-primary hover:underline">Upload a new file →</a>
     </div>
 
-    <!-- BuzzHeavier: embedded iframe -->
-    <div x-show="!error && provider === 'buzzheavier' && fileId" x-cloak id="buzz-wrap">
+    <div x-show="!error && fileId" x-cloak id="buzz-wrap">
       <iframe id="buzz-frame" scrolling="no"></iframe>
       <p class="text-xs text-muted-foreground mt-3">
         Hosted by Free Upload Manager ·
@@ -63,112 +61,51 @@
       </p>
     </div>
 
-    <!-- FileDitch: clean download card -->
-    <div x-show="!error && provider === 'fileditch'" x-cloak class="mt-6">
-      <div class="border border-border rounded-sm p-6 max-w-lg">
-        <div class="flex items-start gap-4">
-          <!-- File icon -->
-          <div class="flex-shrink-0 mt-1">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
-              class="text-muted-foreground">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-            </svg>
-          </div>
-          <div class="min-w-0 flex-1">
-            <p class="font-medium text-foreground break-all" x-text="fileName || 'Unknown file'"></p>
-            <p class="text-sm text-muted-foreground mt-0.5" x-text="fileSize" x-show="fileSize"></p>
-            <p class="text-sm mt-3 text-muted-foreground" x-text="note" x-show="note"></p>
-          </div>
-        </div>
-
-        <a :href="rawUrl"
-          class="mt-5 inline-block px-4 py-2 border border-border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer no-underline text-foreground"
-          x-text="'Download ' + (fileName || 'file')">
-        </a>
-
-        <p class="text-xs text-muted-foreground mt-4">
-          Hosted on <a href="https://new.fileditch.com" class="hover:underline text-primary" target="_blank">FileDitch</a> via Free Upload Manager ·
-          <a href="../index.html" class="hover:underline text-primary">Upload your own file</a>
-        </p>
-      </div>
-    </div>
-
   </div>
 
   <script>
-    function humanSize(b) {
-      if (!b) return '';
-      const u = ['B','KB','MB','GB','TB'];
-      const i = Math.floor(Math.log(b) / Math.log(1024));
-      return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + u[i];
-    }
-
     function dlApp() {
       return {
         accountId: localStorage.getItem('fum_account_id') || '',
-        provider : '',   // 'buzzheavier' | 'fileditch'
-        fileId   : '',   // BuzzHeavier only
-        rawUrl   : '',   // FileDitch only
-        fileName : '',
-        fileSize : '',
-        note     : '',
+        fileId   : '',
         error    : '',
 
         async init() {
           const p      = new URLSearchParams(window.location.search);
           const rawUrl = p.get('url') || '';
           const name   = decodeURIComponent(p.get('name') || '');
-          const size   = parseInt(p.get('size') || '0', 10);
-          const note   = p.get('note') || '';
 
-          this.fileName = name;
-          this.fileSize = humanSize(size);
-          this.note     = note;
-          this.rawUrl   = rawUrl;
+          const decoded     = decodeURIComponent(rawUrl);
+          const innerParams = new URLSearchParams(decoded.split('?')[1] || '');
+          this.fileId = innerParams.get('_id')
+            || decoded.replace(/.*buzzheavier\.com\//, '').split('?')[0].trim();
 
+          if (!this.fileId) { this.error = 'Ogiltig nedladdningslänk.'; return; }
           if (name) document.title = name + ' - Free Upload Manager';
 
-          if (!rawUrl) { this.error = 'Ogiltig nedladdningslänk.'; return; }
+          // Auto-resize from srcdoc postMessage
+          window.addEventListener('message', e => {
+            if (e.data?.type === 'iframeHeight') {
+              const f = document.getElementById('buzz-frame');
+              if (f) f.style.height = (e.data.h + 20) + 'px';
+            }
+          });
 
-          // Detect provider from the raw URL
-          if (rawUrl.includes('buzzheavier.com')) {
-            this.provider = 'buzzheavier';
-            const decoded     = decodeURIComponent(rawUrl);
-            const innerParams = new URLSearchParams(decoded.split('?')[1] || '');
-            this.fileId = innerParams.get('_id')
-              || decoded.replace(/.*buzzheavier\.com\//, '').split('?')[0].trim();
-
-            if (!this.fileId) { this.error = 'Ogiltig BuzzHeavier-länk.'; return; }
-
-            window.addEventListener('message', e => {
-              if (e.data?.type === 'iframeHeight') {
-                const f = document.getElementById('buzz-frame');
-                if (f) f.style.height = (e.data.h + 20) + 'px';
-              }
-            });
-            await this.loadBuzzPage();
-
-          } else if (rawUrl.includes('fileditch')) {
-            this.provider = 'fileditch';
-            // rawUrl is the direct FileDitch download link — nothing more to do
-
-          } else {
-            this.error = 'Okänd filhost i länken.';
-          }
+          await this.loadPage();
         },
 
-        async loadBuzzPage() {
+        async loadPage() {
           const frame  = document.getElementById('buzz-frame');
           const WORKER = (typeof FUM_CONFIG !== 'undefined') ? FUM_CONFIG.WORKER_URL : '';
 
           try {
+            // Worker fetches buzzheavier HTML and injects FUM background colour
             const res = await fetch(`${WORKER}/page/${this.fileId}`);
             if (!res.ok) throw new Error('worker ' + res.status);
 
             let html = await res.text();
 
+            // Inject resize + popup-blocker script into the srcdoc
             const script = [
               '<script>(function(){',
               '  function sh(){parent.postMessage({type:"iframeHeight",h:document.body.scrollHeight},"*");}',
@@ -190,6 +127,7 @@
             frame.style.height = '380px';
 
           } catch (_) {
+            // Fallback: direct iframe with negative margin to hide their header
             frame.src = 'https://buzzheavier.com/' + this.fileId;
             frame.setAttribute('sandbox',
               'allow-scripts allow-downloads allow-forms allow-same-origin');

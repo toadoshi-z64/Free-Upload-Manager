@@ -62,6 +62,27 @@
         <input type="file" id="file-input" multiple class="text-sm">
       </div>
 
+      <!-- Provider selector -->
+      <div class="flex flex-wrap gap-2 items-center mt-3 mb-1">
+        <span class="text-sm text-muted-foreground">Host:</span>
+        <button @click="provider = 'buzzheavier'"
+          :class="provider === 'buzzheavier' ? 'border-foreground font-medium' : 'border-border text-muted-foreground'"
+          class="px-3 py-1 border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer transition-colors">
+          BuzzHeavier
+        </button>
+        <button @click="provider = 'fileditch'"
+          :class="provider === 'fileditch' ? 'border-foreground font-medium' : 'border-border text-muted-foreground'"
+          class="px-3 py-1 border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer transition-colors">
+          FileDitch
+        </button>
+      </div>
+      <p class="text-xs text-muted-foreground mb-1" x-show="provider === 'buzzheavier'">
+        No file size limit &nbsp;·&nbsp; Fast but more temporary storage
+      </p>
+      <p class="text-xs text-muted-foreground mb-1" x-show="provider === 'fileditch'" x-cloak>
+        Files kept longer &nbsp;·&nbsp; Max 25 GB &nbsp;·&nbsp; No auth needed &nbsp;·&nbsp; Blocks executables (.exe, .js, .py…)
+      </p>
+
       <!-- Buttons -->
       <div class="flex flex-wrap gap-2 items-center mt-2">
         <button @click="upload()" :disabled="uploading"
@@ -136,6 +157,7 @@
     function app() {
       return {
         accountId : localStorage.getItem('fum_account_id') || '',
+        provider  : localStorage.getItem('fum_provider') || 'buzzheavier',
         queue     : [],
         completed : [],
         showNote  : false,
@@ -146,6 +168,7 @@
 
         init() {
           this.accountId = localStorage.getItem('fum_account_id') || '';
+          this.$watch('provider', val => localStorage.setItem('fum_provider', val));
         },
 
         logout() {
@@ -174,15 +197,22 @@
             this.queue.push(task);
             const taskRef = this.queue[this.queue.length - 1];
 
-            const uploader = new BuzzUploader(file, {
-              workerUrl : WORKER_URL,
-              note      : this.note,
-              authToken : this.accountId || null,
-              onProgress: (pct, stats) => {
-                taskRef.progress  = pct;
-                taskRef.statsText = stats;
-              },
-            });
+            const progressCb = (pct, stats) => {
+              taskRef.progress  = pct;
+              taskRef.statsText = stats;
+            };
+
+            let uploader;
+            if (this.provider === 'fileditch') {
+              uploader = new FileDitchUploader(file, { onProgress: progressCb });
+            } else {
+              uploader = new BuzzUploader(file, {
+                workerUrl : WORKER_URL,
+                note      : this.note,
+                authToken : this.accountId || null,
+                onProgress: progressCb,
+              });
+            }
             this._uploaders.push(uploader);
 
             try {
@@ -203,6 +233,7 @@
                 id: 'local_' + Date.now() + '_' + idx,
                 file_name: file.name, file_size: file.size,
                 file_url: ourLink, raw_url: link,
+                provider: this.provider,
                 note: this.note || undefined, account_id: this.accountId || undefined,
                 created_date: new Date().toISOString(), download_count: 0,
               });
@@ -322,6 +353,115 @@
           xhr.onabort = () => { this._xhr = null; reject(new Error('cancelled')); };
 
           xhr.send(this.file);
+        });
+      }
+
+      async start() {
+        this._startTime = Date.now();
+        this.onProgress(0, 'Starting…');
+        const link = await this.uploadFile();
+        this.onProgress(100, 'Done');
+        return link;
+      }
+    }
+
+    // ── FileDitch uploader — direct browser POST, no proxy needed ──
+    // Docs: https://new.fileditch.com/api.html
+    // Max 25 GB · Files kept longer · No auth required
+    class FileDitchUploader {
+      // Extensions blocked by FileDitch
+      static BLOCKED_EXTS = new Set([
+        'php', 'html', 'htm', 'js', 'mjs', 'exe', 'apk', 'sh', 'py',
+        'bat', 'cmd', 'vbs', 'ps1', 'msi', 'jar', 'wsf', 'hta',
+      ]);
+
+      constructor(file, opts) {
+        this.file       = file;
+        this.onProgress = opts.onProgress || (() => {});
+        this._aborted   = false;
+        this._xhr       = null;
+        this._startTime = 0;
+      }
+
+      abort() {
+        this._aborted = true;
+        if (this._xhr) { try { this._xhr.abort(); } catch(_) {} }
+      }
+
+      humanSize(b) {
+        if (!b) return '0 B';
+        const u = ['B','KB','MB','GB','TB'];
+        const i = Math.floor(Math.log(b) / Math.log(1024));
+        return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + u[i];
+      }
+
+      uploadFile() {
+        return new Promise((resolve, reject) => {
+          if (this._aborted) return reject(new Error('cancelled'));
+
+          // Check for blocked extensions before starting
+          const ext = this.file.name.split('.').pop().toLowerCase();
+          if (FileDitchUploader.BLOCKED_EXTS.has(ext)) {
+            return reject(new Error(
+              `FileDitch does not allow .${ext} files. Switch to BuzzHeavier for executables and scripts.`
+            ));
+          }
+
+          // Check 25 GB limit
+          const GB25 = 25 * 1024 * 1024 * 1024;
+          if (this.file.size > GB25) {
+            return reject(new Error(
+              `File exceeds FileDitch's 25 GB limit (${this.humanSize(this.file.size)}). Switch to BuzzHeavier for larger files.`
+            ));
+          }
+
+          const xhr = new XMLHttpRequest();
+          this._xhr = xhr;
+
+          // Use multipart/form-data — most CORS-friendly approach
+          const formData = new FormData();
+          formData.append('file', this.file, this.file.name);
+
+          xhr.open('POST', 'https://new.fileditch.com/upload.php', true);
+
+          xhr.upload.onprogress = e => {
+            if (!e.lengthComputable) return;
+            const elapsed = (Date.now() - this._startTime) / 1000;
+            const speed   = elapsed > 0 ? ' - ' + this.humanSize(e.loaded / elapsed) + '/s' : '';
+            const pct     = Math.round(e.loaded / e.total * 99);
+            this.onProgress(pct, this.humanSize(e.loaded) + ' / ' + this.humanSize(e.total) + speed);
+          };
+
+          xhr.upload.onload = () => {
+            this.onProgress(99, 'Saving to FileDitch…');
+          };
+
+          xhr.onload = () => {
+            this._xhr = null;
+            if (xhr.status === 200) {
+              try {
+                const json = JSON.parse(xhr.responseText);
+                if (json.success && json.url) {
+                  resolve(json.url);
+                } else {
+                  reject(new Error(json.error || 'FileDitch returned no URL'));
+                }
+              } catch (e) {
+                reject(new Error('Could not parse FileDitch response: ' + xhr.responseText.slice(0, 200)));
+              }
+            } else if (xhr.status === 403) {
+              reject(new Error('FileDitch blocked this file type (.'+ext+')'));
+            } else if (xhr.status === 413) {
+              reject(new Error('File too large for FileDitch (max 25 GB)'));
+            } else {
+              reject(new Error('FileDitch HTTP ' + xhr.status + ' - ' + xhr.responseText.slice(0, 200)));
+            }
+          };
+
+          xhr.onerror = () => { this._xhr = null; reject(new Error('Network error — FileDitch may not allow CORS from this browser. Try BuzzHeavier.')); };
+          xhr.onabort = () => { this._xhr = null; reject(new Error('cancelled')); };
+
+          xhr.send(formData);
         });
       }
 
