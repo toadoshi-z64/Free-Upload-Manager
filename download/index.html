@@ -12,6 +12,8 @@
     [x-cloak] { display: none !important; }
     #buzz-wrap { width: 100%; overflow: hidden; background: #0d0d0d; }
     #buzz-frame { width: 100%; height: 300px; border: none; display: block; background: #0d0d0d; }
+    #fd-wrap { width: 100%; overflow: hidden; background: #0d0d0d; }
+    #fd-frame { width: 100%; height: 420px; border: none; display: block; background: #0d0d0d; margin-top: -200px; }
   </style>
 </head>
 <body class="min-h-screen p-4" x-data="dlApp()" x-init="init()">
@@ -63,36 +65,20 @@
       </p>
     </div>
 
-    <!-- FileDitch: clean download card -->
-    <div x-show="!error && provider === 'fileditch'" x-cloak class="mt-6">
-      <div class="border border-border rounded-sm p-6 max-w-lg">
-        <div class="flex items-start gap-4">
-          <!-- File icon -->
-          <div class="flex-shrink-0 mt-1">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
-              class="text-muted-foreground">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-            </svg>
-          </div>
-          <div class="min-w-0 flex-1">
-            <p class="font-medium text-foreground break-all" x-text="fileName || 'Unknown file'"></p>
-            <p class="text-sm text-muted-foreground mt-0.5" x-text="fileSize" x-show="fileSize"></p>
-            <p class="text-sm mt-3 text-muted-foreground" x-text="note" x-show="note"></p>
-          </div>
-        </div>
-
-        <a :href="rawUrl"
-          class="mt-5 inline-block px-4 py-2 border border-border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer no-underline text-foreground"
-          x-text="'Download ' + (fileName || 'file')">
-        </a>
-
-        <p class="text-xs text-muted-foreground mt-4">
-          Hosted on <a href="https://new.fileditch.com" class="hover:underline text-primary" target="_blank">FileDitch</a> via Free Upload Manager ·
-          <a href="../index.html" class="hover:underline text-primary">Upload your own file</a>
-        </p>
+    <!-- FileDitch: file info + embedded iframe -->
+    <div x-show="!error && provider === 'fileditch'" x-cloak>
+      <div class="mb-2 flex gap-3 items-baseline flex-wrap" x-show="fileName || fileSize">
+        <span class="font-medium text-sm" x-text="fileName" x-show="fileName"></span>
+        <span class="text-xs text-muted-foreground" x-text="fileSize" x-show="fileSize"></span>
       </div>
+      <p class="text-sm text-muted-foreground mb-2" x-text="note" x-show="note"></p>
+      <div id="fd-wrap">
+        <iframe id="fd-frame" scrolling="no"></iframe>
+      </div>
+      <p class="text-xs text-muted-foreground mt-3">
+        Hosted on <a href="https://new.fileditch.com" class="hover:underline text-primary" target="_blank">FileDitch</a> via Free Upload Manager ·
+        <a href="../index.html" class="hover:underline text-primary">Upload your own file</a>
+      </p>
     </div>
 
   </div>
@@ -152,11 +138,21 @@
 
           } else if (rawUrl.includes('fileditch')) {
             this.provider = 'fileditch';
-            // rawUrl is the direct FileDitch download link — nothing more to do
+            // Embed FileDitch page in iframe so downloads happen on FUM
+            await this.loadFileDitchPage();
 
           } else {
             this.error = 'Okänd filhost i länken.';
           }
+        },
+
+        async loadFileDitchPage() {
+          const frame = document.getElementById('fd-frame');
+          if (!frame) return;
+          // Embed the FileDitch file page; allow-downloads lets the download button work
+          frame.src = this.rawUrl;
+          frame.setAttribute('sandbox',
+            'allow-scripts allow-downloads allow-forms allow-same-origin allow-popups');
         },
 
         async loadBuzzPage() {
