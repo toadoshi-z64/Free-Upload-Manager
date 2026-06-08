@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Free Managers - Free Upload Manager</title>
+  <link rel="icon" type="image/png" href="../images/logo.png">
+  <link rel="stylesheet" href="../css/style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="min-h-screen p-4" x-data="{accountId: localStorage.getItem('fum_account_id') || ''}">
+
+  <!-- Logo + Header -->
+  <div class="text-center mb-1">
+    <a href="../index.html" class="inline-flex items-center gap-3 no-underline">
+      <img src="../images/logo.png" alt="Free Upload Manager" class="h-12 w-auto">
+      <h1 class="text-3xl font-bold mt-1 mb-0 text-foreground">FREE UPLOAD MANAGER</h1>
+    </a>
+    <p class="mt-0 text-muted-foreground">Fast and reliable file hosting service.</p>
+  </div>
+
+  <!-- Navbar -->
+  <div class="text-center mb-4 text-sm">
+    <a href="../index.html" class="hover:underline font-medium">Index</a>
+    <span class="mx-1">|</span>
+    <a href="../help/index.html" class="hover:underline text-primary">Help</a>
+    <span class="mx-1">|</span>
+    <a href="../discord.html" class="hover:underline text-primary">Discord</a>
+    <span class="mx-1">|</span>
+    <a href="../terms.html" class="hover:underline text-primary">Terms</a>
+    <span class="mx-1">|</span>
+    <a href="../freemanagers.html" class="hover:underline text-primary">Free Managers</a>
+    <span class="mx-1">|</span>
+    <template x-if="accountId">
+      <span>
+        <a href="../account/index.html" class="hover:underline text-primary">My Account</a>
+        <span class="mx-1">|</span>
+        <button @click="localStorage.removeItem('fum_account_id'); accountId=''" class="hover:underline text-primary bg-transparent border-none p-0 cursor-pointer text-sm">Logout</button>
+      </span>
+    </template>
+    <template x-if="!accountId">
+      <a href="../auth/index.html" class="hover:underline text-primary">Login / Signup</a>
+    </template>
+  </div>
+
+  <!-- Main content -->
+  <div class="mx-auto max-w-[60rem]">
+    <h2 class="text-xl font-bold mb-4">The Free Managers</h2>
+    <p class="text-muted-foreground">A "Free Manager" is a manager that is free</p>
+  <div class="space-y-4 text-sm">
+<div>
+
+</div>
+      <div>
+        <h3 class="font-bold mb-1">Free Upload Manager</h3>
+        <img src="../images/logo.png" class="h-7 w-auto">
+        <p class="text-muted-foreground">Free Upload Manager (FUM) is a Free file uploading service.</p>
+        <p class="text-muted-foreground">Actually, you might be on it right now</p>
+        <p class="text-muted-foreground">Developer: <a href="https://freeuploadmanager.org" class="text-primary hover:underline">freeuploadmanager.org</a></p>
+      </div>
+
+      <div>
+        <h3 class="font-bold mb-1">Free Download Manager</h3>
+        <img src="../images/FDM.png" class="h-7 w-auto">
+        <p class="text-muted-foreground">Free Download Manager (FDM) is THE BEST Download Manager and it's free.</p>
+        <p class="text-muted-foreground">It can speed up your downloads by 10x according to their website</p>
+        <p class="text-muted-foreground">Developer: <a href="https://freedownloadmanager.org" class="text-primary hover:underline">freedownloadmanager.org</a></p>
+      </div>
+
+      <div>
+        <h3 class="font-bold mb-1">Free Media Manager</h3>
+        <img src="../images/FMMgr.png" class="h-7 w-auto">
+        <p class="text-muted-foreground">Free Media Manager (FMM) is a work in progress Media Player for listening to music locally.</p>
+        <p class="text-muted-foreground">You can make playlists and much more.</p>
+        <p class="text-muted-foreground">Developer: <a href="https://motherfuckingwebsite.com" class="text-primary hover:underline">itsnotfuckingdone.yet</a></p>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>
