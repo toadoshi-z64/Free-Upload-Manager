@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>404 - Free Upload Manager</title>
-  <link rel="icon" type="image/png" href="/images/logo.png">
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <link rel="stylesheet" href="css/style.css">
   <script>
     // Redirect to index preserving the repo base path on GitHub Pages
     // e.g. https://user.github.io/repo/anything -> https://user.github.io/repo/
@@ -16,26 +16,47 @@
       document.write('<base href="' + base + '">');
     })();
   </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body style="font-family:sans-serif;background:hsl(0,0%,5%);color:hsl(0,0%,90%);padding:1rem">
-  <div style="text-align:center;margin-bottom:.5rem">
-    <a href="" id="home-link" style="display:inline-flex;align-items:center;gap:.75rem;text-decoration:none">
-      <img src="images/logo.png" alt="Free Upload Manager" style="height:3rem;width:auto">
-      <h1 style="font-size:1.875rem;font-weight:700;margin:.25rem 0 0;color:inherit">FREE UPLOAD MANAGER</h1>
+<body class="min-h-screen p-4" x-data="{accountId: localStorage.getItem('fum_account_id') || ''}">
+
+  <!-- Logo + Header -->
+  <div class="text-center mb-1">
+    <a href="index.html" class="inline-flex items-center gap-3 no-underline">
+      <img src="images/logo.png" alt="Free Upload Manager" class="h-12 w-auto">
+      <h1 class="text-3xl font-bold mt-1 mb-0 text-foreground">FREE UPLOAD MANAGER</h1>
     </a>
-    <p style="margin:0;color:hsl(0,0%,60%)">Fast and reliable file hosting service.</p>
+    <p class="mt-0 text-muted-foreground">Fast and reliable file hosting service.</p>
   </div>
-  <div style="text-align:center;margin-bottom:1rem;font-size:.875rem">
-    <a href="index.html" style="color:hsl(210,100%,50%)">Index</a>
-    <span style="margin:0 .25rem">|</span>
-    <a href="help/index.html" style="color:hsl(210,100%,50%)">Help</a>
-    <span style="margin:0 .25rem">|</span>
-    <a href="discord.html" style="color:hsl(210,100%,50%)">Discord</a>
-    <span style="margin:0 .25rem">|</span>
-    <a href="terms.html" style="color:hsl(210,100%,50%)">Terms</a>
+
+  <!-- Navbar -->
+  <div class="text-center mb-4 text-sm">
+    <a href="index.html" class="hover:underline font-medium">Index</a>
+    <span class="mx-1">|</span>
+    <a href="help/index.html" class="hover:underline text-primary">Help</a>
+    <span class="mx-1">|</span>
+    <a href="discord.html" class="hover:underline text-primary">Discord</a>
+    <span class="mx-1">|</span>
+    <a href="terms.html" class="hover:underline text-primary">Terms</a>
+    <span class="mx-1">|</span>
+    <a href="freemanagers.html" class="hover:underline text-primary">Free Managers</a>
+    <span class="mx-1">|</span>
+    <template x-if="accountId">
+      <span>
+        <a href="account/index.html" class="hover:underline text-primary">My Account</a>
+        <span class="mx-1">|</span>
+        <button @click="localStorage.removeItem('fum_account_id'); accountId=''" class="hover:underline text-primary bg-transparent border-none p-0 cursor-pointer text-sm">Logout</button>
+      </span>
+    </template>
+    <template x-if="!accountId">
+      <a href="auth/index.html" class="hover:underline text-primary">Login / Signup</a>
+    </template>
   </div>
-  <div style="max-width:60rem;margin:3rem auto;text-align:center">
-    <p>Page not found. <a href="index.html" style="color:hsl(210,100%,50%)">Back to index</a>.</p>
+
+  <!-- Main content -->
+  <div class="mx-auto max-w-[60rem] text-center" style="margin-top:3rem">
+    <p>Page not found. <a href="index.html" class="hover:underline text-primary">Back to index</a>.</p>
   </div>
+
 </body>
 </html>
