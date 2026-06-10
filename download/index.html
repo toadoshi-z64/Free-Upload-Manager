@@ -108,14 +108,33 @@
       // 2. Remove ALL <iframe> tags inside the page (ad iframes)
       doc.querySelectorAll('iframe').forEach(el => el.remove());
 
-      // 3. Remove known ad/tracker tags
+      // 3. Remove known ad/tracker tags + adblocker detection notices
       doc.querySelectorAll(
         'ins, [id*="ad"], [id*="banner"], [id*="popup"], [id*="pop"], [id*="overlay"], ' +
         '[class*="ad-"], [class*="-ad"], [class*="ads-"], [class*="advert"], ' +
         '[class*="banner"], [class*="popup"], [class*="pop-up"], [class*="overlay"], ' +
         '[class*="modal"], [class*="interstitial"], [data-ad], [data-ad-slot], ' +
-        'ins.adsbygoogle'
+        'ins.adsbygoogle, ' +
+        // Adblocker detection notice elements
+        '[id*="adblock"], [class*="adblock"], ' +
+        '[id*="adb-"], [class*="adb-"], ' +
+        '[id*="-adb"], [class*="-adb"], ' +
+        '[id*="adDetect"], [class*="adDetect"], ' +
+        '[id*="adNotice"], [class*="adNotice"], ' +
+        '[id*="adWall"], [class*="adWall"]'
       ).forEach(el => el.remove());
+
+      // 3b. Text-based fallback: remove any container whose text contains
+      //     adblock/whitelist keywords — catches dynamically-named divs
+      const adblockKeywords = /adblocker detected|adblock detected|whitelist|please disable.*ad|disable.*adblock|ads? keep.{1,30}running/i;
+      doc.querySelectorAll('div, section, aside, article').forEach(el => {
+        if (adblockKeywords.test(el.textContent)) {
+          // Only remove leaf-ish containers, never the entire body
+          if (el !== doc.body && el !== doc.documentElement && el.querySelectorAll('a[href]').length < 5) {
+            el.remove();
+          }
+        }
+      });
 
       // 4. Remove <link> preloads / stylesheets pointing to external ad networks
       doc.querySelectorAll('link[href]').forEach(el => {
