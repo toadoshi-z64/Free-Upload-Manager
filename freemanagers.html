@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Free Managers - Free Upload Manager</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#ffffff">
   <link rel="icon" type="image/png" href="../images/logo.png">
   <link rel="stylesheet" href="../css/style.css">
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -80,5 +82,9 @@
     </div>
   </div>
 
+  <script>
+    if ("serviceWorker" in navigator)
+      navigator.serviceWorker.register("/service-worker.js");
+  </script>
 </body>
 </html>

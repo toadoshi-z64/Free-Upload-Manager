@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Download - Free Upload Manager</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#ffffff">
   <link rel="icon" type="image/png" href="../images/logo.png">
   <link rel="stylesheet" href="../css/style.css">
   <script src="../config.js"></script>
@@ -311,8 +313,16 @@
               '})()<\/script>'
             ].join('\n');
 
-            html = html.includes('</body>')
-              ? html.replace('</body>', script + '</body>')
+            html = html.includes('  <script>
+    if ("serviceWorker" in navigator)
+      navigator.serviceWorker.register("/service-worker.js");
+  </script>
+</body>')
+              ? html.replace('  <script>
+    if ("serviceWorker" in navigator)
+      navigator.serviceWorker.register("/service-worker.js");
+  </script>
+</body>', script + '</body>')
               : html + script;
 
             frame.srcdoc = html;
@@ -328,6 +338,10 @@
         }
       };
     }
+  </script>
+  <script>
+    if ("serviceWorker" in navigator)
+      navigator.serviceWorker.register("/service-worker.js");
   </script>
 </body>
 </html>

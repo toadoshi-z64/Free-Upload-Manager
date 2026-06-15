@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Free Upload Manager</title>
   <meta name="description" content="Free Upload Manager is a very fast filehost that allows you to upload any file no matter file size for FREE">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#ffffff">
   <link rel="icon" type="image/png" href="images/logo.png">
   <link rel="stylesheet" href="css/style.css">
   <script src="config.js"></script>
@@ -478,5 +480,9 @@
       }
     }
 </script>
+  <script>
+    if ("serviceWorker" in navigator)
+      navigator.serviceWorker.register("/service-worker.js");
+  </script>
 </body>
 </html>
