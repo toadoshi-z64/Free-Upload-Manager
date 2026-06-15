@@ -2,7 +2,7 @@
   "name": "Free Upload Manager",
   "short_name": "FUM",
   "start_url": "/",
-  "display": "minimal-ui",
+  "display": "standalone",
   "background_color": "#0d0d0d",
   "theme_color": "#0d0d0d",
   "icons": [
