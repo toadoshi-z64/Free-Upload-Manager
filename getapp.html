@@ -60,6 +60,25 @@
         <h3 class="font-bold mb-1">PHONE (iPhone + Android)</h3>
         <p class="text-muted-foreground">Click the meatball menu in the top left of your browser (the three dots)</p>
         <p class="text-muted-foreground">Click install app</p>
+        <a href="#" id="install-link">Install app</a>
+
+<script>
+  let deferredPrompt;
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('install-link').style.display = 'inline';
+  });
+
+  document.getElementById('install-link').addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+  });
+</script>
       </div>
 
       <div>
