@@ -88,7 +88,7 @@
         Buzzheavier selected: No file size limit &nbsp;·&nbsp; Fast but more temporary storage, zero log policy
       </p>
       <p class="text-xs text-muted-foreground mb-1" x-show="provider === 'fileditch'" x-cloak>
-        FileDitch selected: Files kept longer &nbsp;·&nbsp; Max 25 GB &nbsp;·&nbsp; faster uploads &nbsp;·&nbsp; Blocks executables (.exe, .js, .py…)
+        FileDitch selected: Files kept indefinitely &nbsp;·&nbsp; Max 25 GB &nbsp;·&nbsp; No proxy needed &nbsp;·&nbsp; Blocks executables (.exe, .js, .py…)
       </p>
 
       <!-- Buttons -->
@@ -375,7 +375,7 @@
 
     // ── FileDitch uploader — direct browser POST, no proxy needed ──
     // Docs: https://new.fileditch.com/api.html
-    // Max 25 GB · Files kept longer · No auth required
+    // Max 25 GB · Files kept indefinitely · No auth required
     class FileDitchUploader {
       // Extensions blocked by FileDitch
       static BLOCKED_EXTS = new Set([
@@ -415,11 +415,11 @@
             ));
           }
 
-          // Check 25 GB limit
-          const GB25 = 25 * 1024 * 1024 * 1024;
+          // Check 100 GB limit
+          const GB25 = 100 * 1024 * 1024 * 1024;
           if (this.file.size > GB25) {
             return reject(new Error(
-              `File exceeds FileDitch's 25 GB limit (${this.humanSize(this.file.size)}). Switch to BuzzHeavier for larger files.`
+              `File exceeds FileDitch's 100 GB limit (${this.humanSize(this.file.size)}). Switch to BuzzHeavier for larger files.`
             ));
           }
 
@@ -460,7 +460,7 @@
             } else if (xhr.status === 403) {
               reject(new Error('FileDitch blocked this file type (.'+ext+')'));
             } else if (xhr.status === 413) {
-              reject(new Error('File too large for FileDitch (max 25 GB)'));
+              reject(new Error('File too large for FileDitch (max 100 GB)'));
             } else {
               reject(new Error('FileDitch HTTP ' + xhr.status + ' - ' + xhr.responseText.slice(0, 200)));
             }
