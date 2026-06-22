@@ -14,20 +14,8 @@
     [x-cloak] { display: none !important; }
     #buzz-wrap { width: 100%; overflow: hidden; background: #0d0d0d; }
     #buzz-frame { width: 100%; height: 160px; border: none; display: block; background: #0d0d0d; }
-    #fd-download-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.65rem 1.4rem;
-      background: #2563eb;
-      color: #fff;
-      border-radius: 6px;
-      font-size: 1rem;
-      font-weight: 600;
-      text-decoration: none;
-      transition: background 0.15s;
-    }
-    #fd-download-btn:hover { background: #1d4ed8; }
+    #fd-wrap { width: 100%; overflow: hidden; background: #0d0d0d; }
+    #fd-frame { width: 100%; height: 160px; border: none; display: block; background: #0d0d0d; }
   </style>
 </head>
 <body class="min-h-screen p-4" x-data="dlApp()" x-init="init()">
@@ -85,17 +73,16 @@
       </p>
     </div>
 
-    <!-- FileDitch: direct download button -->
+    <!-- FileDitch: file info + embedded iframe -->
     <div x-show="!error && provider === 'fileditch'" x-cloak>
-      <div class="mb-3 flex gap-3 items-baseline flex-wrap" x-show="fileName || fileSize">
+      <div class="mb-2 flex gap-3 items-baseline flex-wrap" x-show="fileName || fileSize">
         <span class="font-medium text-sm" x-text="fileName" x-show="fileName"></span>
         <span class="text-xs text-muted-foreground" x-text="fileSize" x-show="fileSize"></span>
       </div>
-      <p class="text-sm text-muted-foreground mb-3" x-text="note" x-show="note"></p>
-      <a id="fd-download-btn" :href="rawUrl" download>
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download
-      </a>
+      <p class="text-sm text-muted-foreground mb-2" x-text="note" x-show="note"></p>
+      <div id="fd-wrap">
+        <iframe id="fd-frame" scrolling="no"></iframe>
+      </div>
       <p class="text-xs text-muted-foreground mt-3">
         Uploaded using <a href="https://freeuploadmanager.org" class="hover:underline text-primary" target="_blank">Free Upload Manager</a> ·
         <a href="../index.html" class="hover:underline text-primary">Upload your own file</a>
@@ -110,6 +97,99 @@
       const u = ['B','KB','MB','GB','TB'];
       const i = Math.floor(Math.log(b) / Math.log(1024));
       return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + u[i];
+    }
+
+    /* ------------------------------------------------------------------ *
+     *  Ad-stripping for FileDitch HTML
+     * ------------------------------------------------------------------ */
+    function stripAds(html) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      // 1. Remove ALL <script> tags — kills ad loaders, pop-up scripts, trackers
+      doc.querySelectorAll('script').forEach(el => el.remove());
+
+      // 2. Remove ALL <iframe> tags inside the page (ad iframes)
+      doc.querySelectorAll('iframe').forEach(el => el.remove());
+
+      // 3. Remove known ad/tracker tags + adblocker detection notices
+      doc.querySelectorAll(
+        'ins, [id^="ad-"], [id$="-ad"], [id*="-ad-"], [id*="_ad_"], [id^="ad_"], [id$="_ad"], ' +
+        '[id="ad"], [id*="banner"], [id*="popup"], [id^="pop-"], [id$="-pop"], [id*="overlay"], ' +
+        '[class*="ad-"], [class*="-ad"], [class*="ads-"], [class*="advert"], ' +
+        '[class*="banner"], [class*="popup"], [class*="pop-up"], [class*="overlay"], ' +
+        '[class*="modal"], [class*="interstitial"], [data-ad], [data-ad-slot], ' +
+        'ins.adsbygoogle, ' +
+        // Adblocker detection notice elements
+        '[id*="adblock"], [class*="adblock"], ' +
+        '[id*="adb-"], [class*="adb-"], ' +
+        '[id*="-adb"], [class*="-adb"], ' +
+        '[id*="adDetect"], [class*="adDetect"], ' +
+        '[id*="adNotice"], [class*="adNotice"], ' +
+        '[id*="adWall"], [class*="adWall"]'
+      ).forEach(el => el.remove());
+
+      // 3b. Text-based fallback: remove any container whose text contains
+      //     adblock/whitelist keywords — catches dynamically-named divs
+      const adblockKeywords = /adblocker detected|adblock detected|whitelist|please disable.*ad|disable.*adblock|ads? keep.{1,30}running/i;
+      doc.querySelectorAll('div, section, aside, article').forEach(el => {
+        if (adblockKeywords.test(el.textContent)) {
+          // Only remove leaf-ish containers, never the entire body
+          if (el !== doc.body && el !== doc.documentElement && el.querySelectorAll('a[href]').length < 5) {
+            el.remove();
+          }
+        }
+      });
+
+      // 4. Remove <link> preloads / stylesheets pointing to external ad networks
+      doc.querySelectorAll('link[href]').forEach(el => {
+        const href = el.getAttribute('href') || '';
+        if (/googlesyndication|doubleclick|adnxs|popads|popcash|mgid|taboola|outbrain/i.test(href)) {
+          el.remove();
+        }
+      });
+
+      // 5. Inject anti-popup + auto-click-download guard script
+      //    Runs before anything else (no other scripts remain, but just in case)
+      const guard = doc.createElement('script');
+      guard.textContent = `(function(){
+        // Block any new window / tab from opening
+        window.open = function(url, target, features) {
+          // Only allow blob: or data: downloads
+          if (url && (url.startsWith('blob:') || url.startsWith('data:'))) {
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = '';
+            a.click();
+          }
+          return null;
+        };
+
+        // Block window.location redirects to ad pages
+        var _locDesc = Object.getOwnPropertyDescriptor(window, 'location');
+        try {
+          Object.defineProperty(window, 'location', {
+            get: function(){ return _locDesc ? _locDesc.get.call(window) : location; },
+            set: function(v){
+              // Only allow same-origin or blob navigations
+              try {
+                var u = new URL(v, window.location.href);
+                if (u.origin === window.location.origin || u.protocol === 'blob:') {
+                  _locDesc ? (_locDesc.set && _locDesc.set.call(window, v)) : void 0;
+                }
+              } catch(e){}
+            }
+          });
+        } catch(e){}
+
+        // Report iframe height to parent
+        function sh(){ parent.postMessage({type:'iframeHeight', h: document.body.scrollHeight}, '*'); }
+        new ResizeObserver(sh).observe(document.body);
+        sh();
+      })();`;
+      doc.head.insertBefore(guard, doc.head.firstChild);
+
+      return '<!DOCTYPE html>' + doc.documentElement.outerHTML;
     }
 
     function dlApp() {
@@ -159,10 +239,57 @@
 
           } else if (rawUrl.includes('fileditch')) {
             this.provider = 'fileditch';
-            // rawUrl is already the direct download link — nothing more to load
+            await this.loadFileDitchPage();
 
           } else {
             this.error = 'Okänd filhost i länken.';
+          }
+        },
+
+        /* ---------------------------------------------------------------- *
+         *  FileDitch — fetch via Worker proxy, strip ads, embed as srcdoc
+         *  Sandbox: NO allow-popups, NO allow-top-navigation
+         * ---------------------------------------------------------------- */
+        async loadFileDitchPage() {
+          const frame  = document.getElementById('fd-frame');
+          if (!frame) return;
+
+          const WORKER = (typeof FUM_CONFIG !== 'undefined') ? FUM_CONFIG.WORKER_URL : '';
+
+          // Listen for height messages from the cleaned iframe
+          window.addEventListener('message', e => {
+            if (e.data?.type === 'iframeHeight') {
+              frame.style.height = (e.data.h + 20) + 'px';
+            }
+          });
+
+          try {
+            // Reuse the same Worker proxy endpoint that already serves BuzzHeavier pages.
+            // The Worker just fetches the URL server-side and returns the HTML,
+            // bypassing CORS and letting us manipulate it here.
+            const proxyUrl = `${WORKER}/page/fd?url=${encodeURIComponent(this.rawUrl)}`;
+            const res = await fetch(proxyUrl);
+            if (!res.ok) throw new Error('worker ' + res.status);
+
+            const html = await res.text();
+
+            // Strip all ads, popups, external scripts before embedding
+            frame.srcdoc = stripAds(html);
+
+            // Sandbox: scripts allowed (for download button), downloads allowed,
+            // forms allowed — but NO popups, NO top-navigation
+            frame.setAttribute('sandbox',
+              'allow-scripts allow-downloads allow-forms allow-same-origin');
+
+            frame.style.height = '120px';
+
+          } catch (err) {
+            // Fallback: direct embed without allow-popups (blocks most ad tabs)
+            console.warn('Worker proxy failed, falling back to direct embed:', err);
+            frame.src = this.rawUrl;
+            frame.setAttribute('sandbox',
+              'allow-scripts allow-downloads allow-forms allow-same-origin');
+            // No allow-popups = popup ads are blocked even in fallback
           }
         },
 
