@@ -114,8 +114,7 @@
 
       // 3. Remove known ad/tracker tags + adblocker detection notices
       doc.querySelectorAll(
-        'ins, [id^="ad-"], [id$="-ad"], [id*="-ad-"], [id*="_ad_"], [id^="ad_"], [id$="_ad"], ' +
-        '[id="ad"], [id*="banner"], [id*="popup"], [id^="pop-"], [id$="-pop"], [id*="overlay"], ' +
+        'ins, [id*="ad"], [id*="banner"], [id*="popup"], [id*="pop"], [id*="overlay"], ' +
         '[class*="ad-"], [class*="-ad"], [class*="ads-"], [class*="advert"], ' +
         '[class*="banner"], [class*="popup"], [class*="pop-up"], [class*="overlay"], ' +
         '[class*="modal"], [class*="interstitial"], [data-ad], [data-ad-slot], ' +
