@@ -58,6 +58,9 @@
     </template>
   </div>
 
+  <!-- Account music -->
+  <audio id="account-music" src="../sound/myaccount.mp3" loop preload="auto"></audio>
+
   <div class="mx-auto max-w-[60rem]">
 
     <!-- Not logged in -->
@@ -122,6 +125,26 @@
         init() {
           this.accountId = localStorage.getItem('fum_account_id') || '';
           if (this.accountId) this.loadFiles();
+
+          // Background music: try to autoplay; if the browser blocks it
+          // (most do, until the visitor has interacted with the page),
+          // start it on the first click/keypress instead.
+          const accountMusic = document.getElementById('account-music');
+          const tryPlay = () => accountMusic.play().catch(() => {});
+          tryPlay();
+          const startOnInteraction = () => {
+            accountMusic.play().then(() => {
+              // Only stop listening once playback actually started -
+              // on a slower connection (e.g. GitHub Pages) the file may
+              // not be ready yet on the very first click, so keep trying.
+              document.removeEventListener('click', startOnInteraction);
+              document.removeEventListener('keydown', startOnInteraction);
+              document.removeEventListener('touchstart', startOnInteraction);
+            }).catch(() => {});
+          };
+          document.addEventListener('click', startOnInteraction);
+          document.addEventListener('keydown', startOnInteraction);
+          document.addEventListener('touchstart', startOnInteraction);
         },
 
         loadFiles() {
