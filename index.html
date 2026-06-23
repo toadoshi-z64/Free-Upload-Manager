@@ -205,12 +205,22 @@
           const tryPlay = () => bgMusic.play().catch(() => {});
           tryPlay();
           const startOnInteraction = () => {
-            tryPlay();
-            document.removeEventListener('click', startOnInteraction);
-            document.removeEventListener('keydown', startOnInteraction);
+            bgMusic.play().then(() => {
+              // Only stop listening once playback actually started -
+              // on a slower connection (e.g. GitHub Pages) the file may
+              // not be ready yet on the very first click, so keep trying.
+              document.removeEventListener('click', startOnInteraction);
+              document.removeEventListener('keydown', startOnInteraction);
+              document.removeEventListener('touchstart', startOnInteraction);
+            }).catch(() => {});
           };
           document.addEventListener('click', startOnInteraction);
           document.addEventListener('keydown', startOnInteraction);
+          document.addEventListener('touchstart', startOnInteraction);
+
+          // Lower the volume of the upload-loading sound effect.
+          const loadingSound = document.getElementById('loading-sound');
+          loadingSound.volume = 0.3;
         },
 
         logout() {
