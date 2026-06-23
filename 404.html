@@ -8,6 +8,8 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="icon" type="image/png" href="images/logo.png">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/globe-bg.css">
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.2.0/model-viewer.min.js"></script>
   <script>
     // Redirect to index preserving the repo base path on GitHub Pages
     // e.g. https://user.github.io/repo/anything -> https://user.github.io/repo/
@@ -21,6 +23,13 @@
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="min-h-screen p-4" x-data="{accountId: localStorage.getItem('fum_account_id') || ''}">
+  <!-- Rotating globe background (auto-rotate, no sound/interaction) -->
+  <div id="fum-globe-bg" aria-hidden="true">
+    <model-viewer src="images/globe/earth.gltf" disable-zoom interaction-prompt="none"
+      shadow-intensity="0" exposure="0.5" camera-orbit="0deg 75deg 0.16m" field-of-view="30deg"
+      auto-rotate auto-rotate-delay="0" rotation-per-second="6deg">
+    </model-viewer>
+  </div>
 
   <!-- Logo + Header -->
   <div class="text-center mb-1">

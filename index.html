@@ -9,6 +9,8 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="icon" type="image/png" href="images/logo.png">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/globe-bg.css">
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.2.0/model-viewer.min.js"></script>
   <script src="config.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
@@ -22,6 +24,13 @@
   </style>
 </head>
 <body class="min-h-screen p-4" x-data="app()" x-init="init()">
+  <!-- Rotating globe background (auto-rotate, no sound/interaction) -->
+  <div id="fum-globe-bg" aria-hidden="true">
+    <model-viewer src="images/globe/earth.gltf" disable-zoom interaction-prompt="none"
+      shadow-intensity="0" exposure="0.5" camera-orbit="0deg 75deg 0.16m" field-of-view="30deg"
+      auto-rotate auto-rotate-delay="0" rotation-per-second="6deg">
+    </model-viewer>
+  </div>
 
   <!-- Logo -->
   <div class="text-center mb-1">
@@ -125,10 +134,15 @@
           <li x-show="task.status !== 'completed'" class="mb-3">
             <div class="flex flex-col gap-1">
               <span class="text-sm" x-text="task.name"></span>
-              <div class="progress-bar-wrap">
-                <div class="progress-bar-inner"
-                  :class="{ error: task.status === 'error' }"
-                  :style="`width:${task.progress}%`"></div>
+              <div class="flex items-center gap-2">
+                <div class="progress-bar-wrap flex-1">
+                  <div class="progress-bar-inner"
+                    :class="{ error: task.status === 'error' }"
+                    :style="`width:${task.progress}%`"></div>
+                </div>
+                <img src="images/spinner.gif" alt="Uploading"
+                  class="w-5 h-5 shrink-0"
+                  x-show="task.status === 'inprogress'" x-cloak>
               </div>
               <span class="text-sm"
                 :class="{ 'text-destructive': task.status === 'error' }"
@@ -144,6 +158,12 @@
         </template>
       </ul>
     </div>
+
+    <!-- Background music -->
+    <audio id="bg-music" src="sound/space1.mp3" loop preload="auto"></audio>
+
+    <!-- Upload loading sound -->
+    <audio id="loading-sound" src="sound/loading.mp3" loop preload="auto"></audio>
 
     <h4>Our main features include</h4>
     <ul>
@@ -177,6 +197,20 @@
         init() {
           this.accountId = localStorage.getItem('fum_account_id') || '';
           this.$watch('provider', val => localStorage.setItem('fum_provider', val));
+
+          // Background music: try to autoplay; if the browser blocks it
+          // (most do, until the visitor has interacted with the page),
+          // start it on the first click/keypress instead.
+          const bgMusic = document.getElementById('bg-music');
+          const tryPlay = () => bgMusic.play().catch(() => {});
+          tryPlay();
+          const startOnInteraction = () => {
+            tryPlay();
+            document.removeEventListener('click', startOnInteraction);
+            document.removeEventListener('keydown', startOnInteraction);
+          };
+          document.addEventListener('click', startOnInteraction);
+          document.addEventListener('keydown', startOnInteraction);
         },
 
         logout() {
@@ -198,6 +232,10 @@
 
           this.uploading = true;
           this._uploaders = [];
+
+          const sound = document.getElementById('loading-sound');
+          sound.currentTime = 0;
+          sound.play().catch(() => {});
 
           for (let idx = 0; idx < files.length; idx++) {
             const file = files[idx];
@@ -258,6 +296,9 @@
 
           this.uploading = false;
           input.value = '';
+          const sound2 = document.getElementById('loading-sound');
+          sound2.pause();
+          sound2.currentTime = 0;
         },
 
         cancel() {
