@@ -347,26 +347,8 @@
               '})()<\/script>'
             ].join('\n');
 
-            html = html.includes('
-  <script>
-    // Fade in globe when loaded
-    document.querySelector('#fum-globe-bg model-viewer')
-      ?.addEventListener('load', function() { this.classList.add('loaded'); });
-  </script>
-</body>')
-              ? html.replace('
-  <script>
-    // Fade in globe when loaded
-    document.querySelector('#fum-globe-bg model-viewer')
-      ?.addEventListener('load', function() { this.classList.add('loaded'); });
-  </script>
-</body>', script + '
-  <script>
-    // Fade in globe when loaded
-    document.querySelector('#fum-globe-bg model-viewer')
-      ?.addEventListener('load', function() { this.classList.add('loaded'); });
-  </script>
-</body>')
+            html = html.includes('</body>')
+              ? html.replace('</body>', script + '</body>')
               : html + script;
 
             frame.srcdoc = html;
@@ -387,12 +369,6 @@
   <script>
     if ("serviceWorker" in navigator)
       navigator.serviceWorker.register("/service-worker.js");
-  </script>
-
-  <script>
-    // Fade in globe when loaded
-    document.querySelector('#fum-globe-bg model-viewer')
-      ?.addEventListener('load', function() { this.classList.add('loaded'); });
   </script>
 </body>
 </html>
