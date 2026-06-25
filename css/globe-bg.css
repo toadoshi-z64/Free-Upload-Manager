@@ -22,6 +22,12 @@
   height: 100%;
   --poster-color: transparent;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+#fum-globe-bg model-viewer.loaded {
+  opacity: 1;
 }
 
 /* Make sure page body stays transparent so the globe shows through,

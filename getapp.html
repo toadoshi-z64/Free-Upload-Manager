@@ -124,5 +124,11 @@
     if ("serviceWorker" in navigator)
       navigator.serviceWorker.register("/service-worker.js");
   </script>
+
+  <script>
+    // Fade in globe when loaded
+    document.querySelector('#fum-globe-bg model-viewer')
+      ?.addEventListener('load', function() { this.classList.add('loaded'); });
+  </script>
 </body>
 </html>
