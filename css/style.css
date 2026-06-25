@@ -2,45 +2,24 @@
 
 /* Theme variables */
 :root {
-  --background: 0 0% 100%;
-  --foreground: 0 0% 10%;
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 10%;
-  --primary: 210 100% 40%;
+  --background: 0 0% 5%;
+  --foreground: 0 0% 90%;
+  --card: 0 0% 8%;
+  --card-foreground: 0 0% 90%;
+  --primary: 210 100% 50%;
   --primary-foreground: 0 0% 100%;
-  --muted: 0 0% 96%;
-  --muted-foreground: 0 0% 45%;
-  --destructive: 0 84% 60%;
+  --muted: 0 0% 14%;
+  --muted-foreground: 0 0% 60%;
+  --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 80%;
-  --input: 0 0% 80%;
-  --ring: 210 100% 40%;
+  --border: 0 0% 20%;
+  --input: 0 0% 20%;
+  --ring: 210 100% 50%;
   --radius: 0.125rem;
-  --secondary: 0 0% 96%;
-  --secondary-foreground: 0 0% 10%;
-  --accent: 0 0% 96%;
-  --accent-foreground: 0 0% 10%;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: 0 0% 5%;
-    --foreground: 0 0% 90%;
-    --card: 0 0% 8%;
-    --card-foreground: 0 0% 90%;
-    --primary: 210 100% 50%;
-    --primary-foreground: 0 0% 100%;
-    --muted: 0 0% 14%;
-    --muted-foreground: 0 0% 60%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 210 100% 50%;
-    --secondary: 0 0% 14%;
-    --secondary-foreground: 0 0% 90%;
-    --accent: 0 0% 14%;
-    --accent-foreground: 0 0% 90%;
-  }
+  --secondary: 0 0% 14%;
+  --secondary-foreground: 0 0% 90%;
+  --accent: 0 0% 14%;
+  --accent-foreground: 0 0% 90%;
 }
 body {
   background-color: hsl(var(--background));
@@ -50,3 +29,24 @@ body {
 }
 a { color: hsl(var(--primary)); }
 a:hover { text-decoration: none; }
+
+/* Readability backdrop over globe background */
+body > .text-center:first-of-type {
+  position: relative;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem 0.5rem;
+}
+
+.mx-auto.max-w-\[60rem\] {
+  position: relative;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
