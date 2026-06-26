@@ -58,6 +58,9 @@
     </template>
   </div>
 
+  <!-- Link to us music -->
+  <audio id="linktous-music" src="../sound/linktous.mp3" loop preload="auto"></audio>
+
   <!-- Main content -->
   <div class="mx-auto max-w-[60rem]">
     <h2 class="text-xl font-bold mb-4">Link to us!</h2>
@@ -84,6 +87,28 @@
       </div>
     </div>
   </div>
+
+  <script>
+    // Background music: try to autoplay; if the browser blocks it
+    // (most do, until the visitor has interacted with the page),
+    // start it on the first click/keypress instead.
+    const linktousMusic = document.getElementById('linktous-music');
+    const tryPlay = () => linktousMusic.play().catch(() => {});
+    tryPlay();
+    const startOnInteraction = () => {
+      linktousMusic.play().then(() => {
+        // Only stop listening once playback actually started -
+        // on a slower connection (e.g. GitHub Pages) the file may
+        // not be ready yet on the very first click, so keep trying.
+        document.removeEventListener('click', startOnInteraction);
+        document.removeEventListener('keydown', startOnInteraction);
+        document.removeEventListener('touchstart', startOnInteraction);
+      }).catch(() => {});
+    };
+    document.addEventListener('click', startOnInteraction);
+    document.addEventListener('keydown', startOnInteraction);
+    document.addEventListener('touchstart', startOnInteraction);
+  </script>
 
   <script>
     if ("serviceWorker" in navigator)
