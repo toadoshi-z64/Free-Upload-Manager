@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact - Free Upload Manager</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" type="image/png" href="../images/logo.png">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="css/globe-bg.css">
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.2.0/model-viewer.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="min-h-screen p-4" x-data="{accountId: localStorage.getItem('fum_account_id') || ''}">
+  <div id="fum-globe-bg" aria-hidden="true">
+    <model-viewer src="images/globe/earth.gltf" disable-zoom interaction-prompt="none"
+      shadow-intensity="0" exposure="0.5" camera-orbit="0deg 75deg 0.16m" field-of-view="30deg"
+      auto-rotate auto-rotate-delay="0" rotation-per-second="6deg">
+    </model-viewer>
+  </div>
+
+  <!-- Logo + Header -->
+  <div class="text-center mb-1">
+    <a href="../index.html" class="inline-flex items-center gap-3 no-underline">
+      <img src="../images/logo.png" alt="Free Upload Manager" class="h-12 w-auto">
+      <h1 class="text-3xl font-bold mt-1 mb-0 text-foreground">FREE UPLOAD MANAGER</h1>
+    </a>
+    <p class="mt-0 text-muted-foreground">Upload files for free with ease.</p>
+  </div>
+
+  <!-- Navbar -->
+  <div class="text-center mb-4 text-sm">
+    <a href="../index.html" class="hover:underline font-medium">Index</a>
+    <span class="mx-1">|</span>
+    <a href="../help/index.html" class="hover:underline text-primary">Help</a>
+    <span class="mx-1">|</span>
+    <a href="../discord.html" target="_blank" rel="noopener noreferrer" class="hover:underline text-primary">Discord</a>
+    <span class="mx-1">|</span>
+    <a href="../terms.html" class="hover:underline text-primary">Terms</a>
+    <span class="mx-1">|</span>
+    <a href="../freemanagers.html" class="hover:underline text-primary">Free Managers</a>
+    <span class="mx-1">|</span>
+    <a href="../linktous.html" class="hover:underline text-primary">Link To Us</a>
+    <span class="mx-1">|</span>
+    <a href="../getapp.html" class="hover:underline text-primary">Get App</a>
+    <span class="mx-1">|</span>
+    <template x-if="accountId">
+      <span>
+        <a href="../account/index.html" class="hover:underline text-primary">My Account</a>
+        <span class="mx-1">|</span>
+        <button @click="localStorage.removeItem('fum_account_id'); accountId=''" class="hover:underline text-primary bg-transparent border-none p-0 cursor-pointer text-sm">Logout</button>
+      </span>
+    </template>
+    <template x-if="!accountId">
+      <a href="../auth/index.html" class="hover:underline text-primary">Login / Signup</a>
+    </template>
+  </div>
+
+  <!-- Main content -->
+  <div class="mx-auto max-w-[60rem]">
+    <h2 class="text-xl font-bold mb-4">Contact & Support</h2>
+
+    <div class="space-y-6 text-sm">
+      <div>
+        <h3 class="font-bold mb-1">Email</h3>
+        <p class="text-muted-foreground">For support or general inquiries, send us an email at <a href="mailto:contact@freeuploadmanager.org" class="text-primary hover:underline">contact@freeuploadmanager.org</a>.</p>
+      </div>
+
+      <div>
+        <h3 class="font-bold mb-1">Discord</h3>
+        <p class="text-muted-foreground">Join our community on Discord for faster responses and community support. <a href="discord.html" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Join the Discord server</a>.</p>
+      </div>
+
+      <div>
+        <h3 class="font-bold mb-1">Abuse & DMCA</h3>
+        <p class="text-muted-foreground">Files are stored on BuzzHeavier and FileDitch. To report abusive content, contact them directly at <a href="mailto:abuse@buzzheavier.com" class="text-primary hover:underline">abuse@buzzheavier.com</a> or <a href="mailto:abuse@fileditch.com" class="text-primary hover:underline">abuse@fileditch.com</a>.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="text-center text-xs text-muted-foreground mt-8 pb-4">
+    <span>© 2025 Free Upload Manager</span>
+    <span class="mx-1">|</span>
+    <a href="terms.html" class="hover:underline text-primary">Terms of Service</a>
+    <span class="mx-1">|</span>
+    <a href="privacy.html" class="hover:underline text-primary">Privacy Policy</a>
+    <span class="mx-1">|</span>
+    <a href="contact.html" class="hover:underline text-primary">Contact / Support</a>
+  </footer>
+
+  <script>
+    if ("serviceWorker" in navigator)
+      navigator.serviceWorker.register("/service-worker.js");
+  </script>
+  <script>
+    document.querySelector('#fum-globe-bg model-viewer')
+      ?.addEventListener('load', function() { this.classList.add('loaded'); });
+  </script>
+</body>
+</html>
