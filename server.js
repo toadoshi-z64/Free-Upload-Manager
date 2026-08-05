@@ -84,13 +84,6 @@ const server = http.createServer((req, res) => {
       });
     });
 
-    // Timeout på 10 minuter för stora filer
-    buzzReq.setTimeout(600000, () => {
-      console.error('BuzzHeavier request timed out');
-      buzzReq.destroy();
-      safeError(504, 'Upload timed out');
-    });
-
     buzzReq.on('error', err => {
       console.error('BuzzHeavier error:', err.message);
       safeError(502, 'Upstream error: ' + err.message);
@@ -106,7 +99,6 @@ const server = http.createServer((req, res) => {
       buzzReq.destroy();
     });
 
-    // Pipe med backpressure
     req.pipe(buzzReq, { end: true });
     return;
   }
@@ -259,7 +251,6 @@ server.on('connection', socket => {
   socket.setKeepAlive(true, 30000);
 });
 
-// Fånga upp oväntade fel så att processen inte kraschar
 process.on('uncaughtException', err => {
   console.error('Uncaught exception:', err.message);
 });
