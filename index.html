@@ -328,35 +328,22 @@
       };
     }
 
-    // ── Uploader - uses BuzzHeavier's PUT-stream API via proxy ──────────────
-    //
-    // Strategy: stream the File through a ReadableStream so the browser never
-    // buffers the whole file in RAM. Progress is tracked by wrapping the stream
-    // with a counting transform. Fetch + ReadableStream body is supported in all
-    // modern browsers and allows files of any size.
-    //
-    // Retry logic: up to MAX_RETRIES attempts with exponential back-off.
-    // Each attempt creates a fresh stream from the same File object (seeking
-    // is free — File.stream() reads from disk on demand).
+    // ── Uploader - uses BuzzHeavier's new PUT-stream API (w.buzzheavier.com) ──
     class BuzzUploader {
       constructor(file, opts) {
-        this.file        = file;
-        this.workerUrl   = opts.workerUrl;
-        this.note        = opts.note || '';
-        this.authToken   = opts.authToken || null;
-        this.onProgress  = opts.onProgress || (() => {});
-        this._aborted    = false;
-        this._controller = null; // AbortController for current fetch
-        this._startTime  = 0;
+        this.file       = file;
+        this.workerUrl  = opts.workerUrl;
+        this.note       = opts.note || '';
+        this.authToken  = opts.authToken || null;
+        this.onProgress = opts.onProgress || (() => {});
+        this._aborted   = false;
+        this._xhr       = null;
+        this._startTime = 0;
       }
-
-      static MAX_RETRIES   = 4;
-      static CHUNK_SIZE    = 2 * 1024 * 1024; // 2 MB read chunks (controls RAM usage)
-      static BASE_DELAY_MS = 3000;
 
       abort() {
         this._aborted = true;
-        if (this._controller) this._controller.abort();
+        if (this._xhr) { try { this._xhr.abort(); } catch(_) {} }
       }
 
       humanSize(b) {
@@ -366,104 +353,66 @@
         return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + u[i];
       }
 
-      // Build a ReadableStream that reads the File in CHUNK_SIZE slices so that
-      // at most one chunk lives in RAM at a time. Also fires onProgress as bytes
-      // are enqueued into the stream (i.e. as they're handed to the network stack).
-      _makeProgressStream(startByte = 0) {
-        const file      = this.file;
-        const total     = file.size;
-        const chunkSize = BuzzUploader.CHUNK_SIZE;
-        let   offset    = startByte;
-        const onProg    = this.onProgress;
-        const getStart  = () => this._startTime;
+      // Two-phase upload:
+      //   Phase 1 (tracked): browser → Oracle cloud (progress 0-99%)
+      //   Phase 2 (server-side): Oracle cloud Worker buffers body then PUT to w.buzzheavier.com
+      //
+      // Streaming the body through the Worker subrequest stalls at ~1 MB due to
+      // backpressure between Oracle cloud and BuzzHeavier. Buffering in arrayBuffer()
+      // on the Worker side sidesteps this entirely - the subrequest is a plain PUT
+      // with a known Content-Length, which BuzzHeavier handles reliably.
+      uploadFile() {
+        return new Promise((resolve, reject) => {
+          if (this._aborted) return reject(new Error('cancelled'));
 
-        return new ReadableStream({
-          pull: async controller => {
-            if (offset >= total) { controller.close(); return; }
-            const end    = Math.min(offset + chunkSize, total);
-            const slice  = file.slice(offset, end);
-            const buf    = await slice.arrayBuffer();
-            offset      += buf.byteLength;
-            controller.enqueue(new Uint8Array(buf));
+          const xhr = new XMLHttpRequest();
+          this._xhr = xhr;
 
-            const elapsed = (Date.now() - getStart()) / 1000;
-            const speed   = elapsed > 0 ? ' - ' + this._humanSz(offset / elapsed) + '/s' : '';
-            const pct     = Math.round(offset / total * 99);
-            onProg(pct, this._humanSz(offset) + ' / ' + this._humanSz(total) + speed);
-          },
-          cancel() { /* stream cancelled — fetch abort handles cleanup */ }
-        });
-      }
+          const endpoint = new URL(this.workerUrl + '/api/upload/' + encodeURIComponent(this.file.name));
+          if (this.note) endpoint.searchParams.set('note', btoa(unescape(encodeURIComponent(this.note))));
 
-      _humanSz(b) { return this.humanSize(b); }
+          xhr.open('PUT', endpoint.toString(), true);
+          if (this.authToken) xhr.setRequestHeader('Authorization', 'Bearer ' + this.authToken);
+          // Browsers can't set Content-Length directly - send file size as a
+          // custom header so the Worker can promote it to Content-Length on the
+          // BuzzHeavier subrequest (BuzzHeavier returns 411 without it).
+          xhr.setRequestHeader('X-File-Size', String(this.file.size));
 
-      async _attempt(attemptNum) {
-        if (this._aborted) throw new Error('cancelled');
+          // Phase 1 - browser is sending to Oracle cloud
+          xhr.upload.onprogress = e => {
+            if (!e.lengthComputable) return;
+            const elapsed = (Date.now() - this._startTime) / 1000;
+            const speed   = elapsed > 0 ? ' - ' + this.humanSize(e.loaded / elapsed) + '/s' : '';
+            const pct     = Math.round(e.loaded / e.total * 99); // cap at 99; 100 = done
+            this.onProgress(pct, this.humanSize(e.loaded) + ' / ' + this.humanSize(e.total) + speed);
+          };
 
-        const endpoint = new URL(this.workerUrl + '/api/upload/' + encodeURIComponent(this.file.name));
-        if (this.note) endpoint.searchParams.set('note', btoa(unescape(encodeURIComponent(this.note))));
+          // Phase 2 - browser finished sending; Worker is now forwarding to BuzzHeavier
+          xhr.upload.onload = () => {
+            this.onProgress(99, 'Saving to cloud…');
+          };
 
-        const headers = {
-          'Content-Type'  : this.file.type || 'application/octet-stream',
-          'X-File-Size'   : String(this.file.size),
-        };
-        if (this.authToken) headers['Authorization'] = 'Bearer ' + this.authToken;
-
-        this._controller = new AbortController();
-        const signal = this._controller.signal;
-
-        // Use a fresh stream for each attempt (seeks from start each time).
-        const body = this._makeProgressStream(0);
-
-        let res;
-        try {
-          res = await fetch(endpoint.toString(), {
-            method : 'PUT',
-            headers,
-            body,
-            signal,
-            // duplex: 'half' is required in Chrome when body is a ReadableStream
-            duplex : 'half',
-          });
-        } catch (err) {
-          if (err.name === 'AbortError' || this._aborted) throw new Error('cancelled');
-          throw err; // network error — caller will retry
-        } finally {
-          this._controller = null;
-        }
-
-        if (!res.ok) {
-          const text = await res.text().catch(() => '');
-          throw new Error('HTTP ' + res.status + ' - ' + text.slice(0, 300));
-        }
-
-        const json = await res.json();
-        const id   = json.data?.id || json.id;
-        if (!id) throw new Error('Upload ok but no file ID - response: ' + JSON.stringify(json).slice(0, 300));
-        return 'https://buzzheavier.com/' + id;
-      }
-
-      async uploadFile() {
-        const maxTries = BuzzUploader.MAX_RETRIES;
-        let   lastErr;
-
-        for (let attempt = 1; attempt <= maxTries; attempt++) {
-          if (this._aborted) throw new Error('cancelled');
-          try {
-            return await this._attempt(attempt);
-          } catch (err) {
-            if (err.message === 'cancelled' || this._aborted) throw new Error('cancelled');
-            lastErr = err;
-            if (attempt < maxTries) {
-              const delay = BuzzUploader.BASE_DELAY_MS * Math.pow(2, attempt - 1);
-              console.warn(`BuzzUploader attempt ${attempt} failed: ${err.message}. Retrying in ${delay}ms…`);
-              this.onProgress(0, `Retry ${attempt}/${maxTries - 1}… (${err.message.slice(0, 60)})`);
-              await new Promise(r => setTimeout(r, delay));
-              this._startTime = Date.now(); // reset speed calc for new attempt
+          xhr.onload = () => {
+            this._xhr = null;
+            if (xhr.status === 200 || xhr.status === 201) {
+              try {
+                const json = JSON.parse(xhr.responseText);
+                const id   = json.data?.id || json.id;
+                if (!id) return reject(new Error('Upload ok but no file ID - response: ' + xhr.responseText.slice(0, 300)));
+                resolve('https://buzzheavier.com/' + id);
+              } catch (e) {
+                reject(new Error('Could not parse response: ' + xhr.responseText.slice(0, 300)));
+              }
+            } else {
+              reject(new Error('HTTP ' + xhr.status + ' - ' + xhr.responseText.slice(0, 300)));
             }
-          }
-        }
-        throw lastErr;
+          };
+
+          xhr.onerror = () => { this._xhr = null; reject(new Error('Network error - check browser console for details')); };
+          xhr.onabort = () => { this._xhr = null; reject(new Error('cancelled')); };
+
+          xhr.send(this.file);
+        });
       }
 
       async start() {
