@@ -13,21 +13,14 @@ const CORS_HEADERS = {
 };
 
 function sendJSON(res, status, obj) {
-  if (res.headersSent) return;
   const body = JSON.stringify(obj);
   res.writeHead(status, { 'Content-Type': 'application/json', ...CORS_HEADERS });
   res.end(body);
 }
 
 const server = http.createServer((req, res) => {
-  let base;
-  try {
-    base = `http://${req.headers.host}`;
-  } catch (_) {
-    return sendJSON(res, 400, { error: 'Bad request' });
-  }
-
-  const url = new URL(req.url, base);
+  const base = `http://${req.headers.host}`;
+  const url  = new URL(req.url, base);
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204, CORS_HEADERS);
@@ -59,47 +52,29 @@ const server = http.createServer((req, res) => {
       upstreamOpts.headers['Authorization'] = req.headers['authorization'];
     }
 
-    let responded = false;
-    const safeError = (status, msg) => {
-      if (responded) return;
-      responded = true;
-      sendJSON(res, status, { error: msg });
-    };
-
     const buzzReq = https.request(upstreamOpts, buzzRes => {
       let body = '';
       buzzRes.on('data', chunk => { body += chunk; });
       buzzRes.on('end', () => {
-        if (responded) return;
-        responded = true;
         res.writeHead(buzzRes.statusCode, {
           'Content-Type': 'application/json',
           ...CORS_HEADERS,
         });
         res.end(body);
       });
-      buzzRes.on('error', err => {
-        console.error('BuzzHeavier response error:', err.message);
-        safeError(502, 'Upstream response error: ' + err.message);
-      });
     });
 
     buzzReq.on('error', err => {
       console.error('BuzzHeavier error:', err.message);
-      safeError(502, 'Upstream error: ' + err.message);
+      sendJSON(res, 502, { error: 'Upstream error: ' + err.message });
     });
 
     req.on('error', err => {
-      console.error('Client request error:', err.message);
+      console.error('Request error:', err.message);
       buzzReq.destroy(err);
     });
 
-    req.on('aborted', () => {
-      console.warn('Client aborted upload');
-      buzzReq.destroy();
-    });
-
-    req.pipe(buzzReq, { end: true });
+    req.pipe(buzzReq);
     return;
   }
 
@@ -153,7 +128,6 @@ const server = http.createServer((req, res) => {
       });
     });
 
-    buzzReq.setTimeout(30000, () => { buzzReq.destroy(); sendJSON(res, 504, { error: 'Timeout' }); });
     buzzReq.on('error', err => sendJSON(res, 502, { error: err.message }));
     buzzReq.end();
     return;
@@ -163,6 +137,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && url.pathname === '/page/fd') {
     const target = url.searchParams.get('url') || '';
 
+    // Säkerhetskoll: tillåt bara fileditch-URLs
     if (!target || !target.includes('fileditch')) {
       sendJSON(res, 400, { error: 'Only FileDitch URLs are allowed' });
       return;
@@ -188,6 +163,7 @@ const server = http.createServer((req, res) => {
     };
 
     const fdReq = https.request(opts, fdRes => {
+      // Följ en eventuell redirect
       if (fdRes.statusCode >= 300 && fdRes.statusCode < 400 && fdRes.headers.location) {
         res.writeHead(302, { Location: fdRes.headers.location, ...CORS_HEADERS });
         res.end();
@@ -202,12 +178,14 @@ const server = http.createServer((req, res) => {
       let html = '';
       fdRes.on('data', chunk => { html += chunk; });
       fdRes.on('end', () => {
+        // Gör relativa URLs absoluta så att CSS/bilder laddas korrekt
         const base = targetUrl.origin;
         html = html
           .replace(/(href|src|action)="\/(?!\/)/g,  `$1="${base}/`)
           .replace(/(href|src|action)='\/(?!\/)/g,  `$1='${base}/`)
           .replace(/url\(\/(?!\/)/g,                 `url(${base}/`);
 
+        // Dölj allt utom knapparna (.controls) — rent och minimalt
         const cleanStyle = `<style>
           body { margin: 0; padding: 12px; background: #0d0d0d !important; }
           body > *:not(.wrap) { display: none !important; }
@@ -227,7 +205,6 @@ const server = http.createServer((req, res) => {
       });
     });
 
-    fdReq.setTimeout(30000, () => { fdReq.destroy(); sendJSON(res, 504, { error: 'Timeout' }); });
     fdReq.on('error', err => {
       console.error('FileDitch proxy error:', err.message);
       sendJSON(res, 502, { error: err.message });
@@ -247,16 +224,12 @@ const server = http.createServer((req, res) => {
   sendJSON(res, 404, { error: 'Not found' });
 });
 
+server.timeout          = 7200000;
+server.keepAliveTimeout = 7200000;
+server.headersTimeout   = 7200100;
+
 server.on('connection', socket => {
   socket.setKeepAlive(true, 30000);
-});
-
-process.on('uncaughtException', err => {
-  console.error('Uncaught exception:', err.message);
-});
-
-process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled rejection:', reason);
 });
 
 server.listen(PORT, () => {
