@@ -224,10 +224,6 @@ const server = http.createServer((req, res) => {
   sendJSON(res, 404, { error: 'Not found' });
 });
 
-server.timeout          = 7200000;
-server.keepAliveTimeout = 7200000;
-server.headersTimeout   = 7200100;
-
 server.on('connection', socket => {
   socket.setKeepAlive(true, 30000);
 });
