@@ -19,8 +19,19 @@ function sendJSON(res, status, obj) {
 }
 
 const server = http.createServer((req, res) => {
-  const base = `http://${req.headers.host}`;
-  const url  = new URL(req.url, base);
+  let base;
+  try {
+    base = `http://${req.headers.host}`;
+  } catch (_) {
+    return sendJSON(res, 400, { error: 'Bad request' });
+  }
+
+  let url;
+  try {
+    url = new URL(req.url, base);
+  } catch (_) {
+    return sendJSON(res, 400, { error: 'Invalid URL' });
+  }
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204, CORS_HEADERS);
@@ -137,7 +148,6 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && url.pathname === '/page/fd') {
     const target = url.searchParams.get('url') || '';
 
-    // Säkerhetskoll: tillåt bara fileditch-URLs
     if (!target || !target.includes('fileditch')) {
       sendJSON(res, 400, { error: 'Only FileDitch URLs are allowed' });
       return;
@@ -163,7 +173,6 @@ const server = http.createServer((req, res) => {
     };
 
     const fdReq = https.request(opts, fdRes => {
-      // Följ en eventuell redirect
       if (fdRes.statusCode >= 300 && fdRes.statusCode < 400 && fdRes.headers.location) {
         res.writeHead(302, { Location: fdRes.headers.location, ...CORS_HEADERS });
         res.end();
@@ -178,14 +187,12 @@ const server = http.createServer((req, res) => {
       let html = '';
       fdRes.on('data', chunk => { html += chunk; });
       fdRes.on('end', () => {
-        // Gör relativa URLs absoluta så att CSS/bilder laddas korrekt
         const base = targetUrl.origin;
         html = html
           .replace(/(href|src|action)="\/(?!\/)/g,  `$1="${base}/`)
           .replace(/(href|src|action)='\/(?!\/)/g,  `$1='${base}/`)
           .replace(/url\(\/(?!\/)/g,                 `url(${base}/`);
 
-        // Dölj allt utom knapparna (.controls) — rent och minimalt
         const cleanStyle = `<style>
           body { margin: 0; padding: 12px; background: #0d0d0d !important; }
           body > *:not(.wrap) { display: none !important; }
@@ -224,12 +231,16 @@ const server = http.createServer((req, res) => {
   sendJSON(res, 404, { error: 'Not found' });
 });
 
-server.timeout          = 7200000;
-server.keepAliveTimeout = 7200000;
-server.headersTimeout   = 7200100;
-
 server.on('connection', socket => {
   socket.setKeepAlive(true, 30000);
+});
+
+process.on('uncaughtException', err => {
+  console.error('Uncaught exception:', err.message);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
 });
 
 server.listen(PORT, () => {
