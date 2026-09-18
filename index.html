@@ -51,6 +51,8 @@
     <span class="mx-1">|</span>
     <a href="terms.html" class="hover:underline text-primary">Terms</a>
     <span class="mx-1">|</span>
+    <a href="speedtest.html" class="hover:underline text-primary">Speedtest</a>
+    <span class="mx-1">|</span>
     <a href="freemanagers.html" class="hover:underline text-primary">Free Managers</a>
     <span class="mx-1">|</span>
     <a href="linktous.html" class="hover:underline text-primary">Link To Us</a>
@@ -72,7 +74,7 @@
   <!-- Main content -->
   <div class="mx-auto max-w-[60rem]">
     <p class="mb-3">Free Upload Manager is a free, easy to use file uploading service with no ads.</p>
-
+<div class="bg-background transition-colors border rounded-sm border-foreground px-3 py-1">
     <div class="flex flex-col">
       <!-- File input -->
       <div class="flex flex-wrap gap-4 items-center">
@@ -80,6 +82,8 @@
       </div>
 
       <!-- Provider selector -->
+    
+    
       <div class="flex flex-wrap gap-2 items-center mt-3 mb-1">
         <span class="text-sm text-muted-foreground">Host:</span>
         <button @click="provider = 'buzzheavier'"
@@ -90,9 +94,11 @@
         <button @click="provider = 'fileditch'"
           :class="provider === 'fileditch' ? 'border-foreground font-medium' : 'border-border text-muted-foreground'"
           class="px-3 py-1 border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer transition-colors">
-          FileDitch (out of function)
+          FileDitch <img src="/images/info.ico" style="height: 1em; display: inline; vertical-align: middle; margin-right: 5px;">(out of function)
         </button>
       </div>
+    </div>
+      
       <p class="text-xs text-muted-foreground mb-1" x-show="provider === 'buzzheavier'">
         Buzzheavier selected: No file size limit &nbsp;·&nbsp; Fast but more temporary storage, zero log policy
       </p>
@@ -168,7 +174,7 @@
     <h4>Our main features include</h4>
     <ul>
       <li>It's Fast</li>
-      <li>Simple UI, No Bullshit, <a href="https://motherfuckingwebsite.com" class="hover:underline font-medium" target="_blank" rel="noopener noreferrer">Fucking Works</a>. </li>
+      <li>Simple UI, No Bullshit, <a href="https://motherfuckingwebsite.com" class="hover:underline font-medium" target="_blank" rel="noopener noreferrer">Just Works</a>. </li>
       <li>No file size limits, No download speed caps.</li>
       <li>Zero log, We don't save your ip or any personal information.</li>
       <li>It's, <a href="https://github.com/toadoshi-z64/Free-Upload-Manager" class="hover:underline font-medium" target="_blank" rel="noopener noreferrer">open source</a>. </li>
@@ -545,7 +551,7 @@
   </script>
 
   <!-- Footer -->
-  <footer class="text-center text-xs text-muted-foreground mt-8 pb-4">
+  <footer class="bg-background transition-colors border rounded-sm border-foreground px-3 py-1 text-center">
     <span>© 2026 Free Upload Manager</span>
     <span class="mx-1">|</span>
     <a href="terms.html" class="hover:underline text-primary">Terms of Service</a>

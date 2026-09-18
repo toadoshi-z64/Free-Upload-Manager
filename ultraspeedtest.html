@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speedtest - Free Upload Manager</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/globe-bg.css">
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.2.0/model-viewer.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="min-h-screen p-4" x-data="{accountId: localStorage.getItem('fum_account_id') || ''}">
+  <!-- Rotating globe background (auto-rotate, no sound/interaction) -->
+  <div id="fum-globe-bg" aria-hidden="true">
+    <model-viewer src="images/globe/earth.gltf" disable-zoom interaction-prompt="none"
+      shadow-intensity="0" exposure="0.5" camera-orbit="0deg 75deg 0.16m" field-of-view="30deg"
+      auto-rotate auto-rotate-delay="0" rotation-per-second="6deg">
+    </model-viewer>
+  </div>
+
+  <!-- Logo + Header -->
+  <div class="text-center mb-1">
+    <a href="index.html" class="inline-flex items-center gap-3 no-underline">
+      <img src="images/logo.png" alt="Free Upload Manager" class="h-12 w-auto">
+      <h1 class="text-3xl font-bold mt-1 mb-0 text-foreground">FREE UPLOAD MANAGER</h1>
+    </a>
+    <p class="mt-0 text-muted-foreground">Upload files for free with ease.</p>
+  </div>
+
+  <!-- Navbar -->
+  <div class="text-center mb-4 text-sm">
+    <a href="index.html" class="hover:underline font-medium">Index</a>
+    <span class="mx-1">|</span>
+    <a href="help/index.html" class="hover:underline text-primary">Help</a>
+    <span class="mx-1">|</span>
+    <a href="discord.html" target="_blank" rel="noopener noreferrer" class="hover:underline text-primary">Discord</a>
+    <span class="mx-1">|</span>
+    <a href="terms.html" class="hover:underline text-primary">Terms</a>
+    <span class="mx-1">|</span>
+    <a href="speedtest.html" class="hover:underline text-primary">Speedtest</a>
+    <span class="mx-1">|</span>
+    <a href="freemanagers.html" class="hover:underline text-primary">Free Managers</a>
+    <span class="mx-1">|</span>
+    <a href="linktous.html" class="hover:underline text-primary">Link To Us</a>
+    <span class="mx-1">|</span>
+    <a href="getapp.html" class="hover:underline text-primary">Get App</a>
+    <span class="mx-1">|</span>
+    <template x-if="accountId">
+      <span>
+        <a href="account/index.html" class="hover:underline text-primary">My Account</a>
+        <span class="mx-1">|</span>
+        <button @click="localStorage.removeItem('fum_account_id'); accountId=''" class="hover:underline text-primary bg-transparent border-none p-0 cursor-pointer text-sm">Logout</button>
+      </span>
+    </template>
+    <template x-if="!accountId">
+      <a href="auth/index.html" class="hover:underline text-primary">Login / Signup</a>
+    </template>
+  </div>
+
+  <!-- Main content -->
+  <div class="mx-auto max-w-[60rem]" x-data="speedtest()">
+    <h2 class="text-xl font-bold mb-4">Ultra Speedtest</h2>
+    <p class="text-muted-foreground mb-4">Welcome to the secret ultra speedtest at FUM!<br>
+    Here you can run multiple speedtests at the same time to see what your network really goes for.
+    </p>
+
+    <div class="space-y-4 text-sm">
+      <div class="space-x-4" x-show="!running">
+        <label class="cursor-pointer">
+          <input type="radio" name="duration" value="15" x-model="duration">
+          15 seconds
+        </label>
+        <label class="cursor-pointer">
+          <input type="radio" name="duration" value="0" x-model="duration">
+          Until stopped
+        </label>
+      </div>
+
+      <div x-show="!running">
+        <label class="cursor-pointer">
+          Parallel connections:
+          <select x-model="connections" class="border rounded px-1 py-0.5 ml-1">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="4">4</option>
+            <option value="8">8</option>
+          </select>
+        </label>
+        <span class="text-muted-foreground text-xs block mt-1">Running several connections at once can give a more accurate result on fast lines, since a single connection is sometimes capped below your real speed.</span>
+      </div>
+
+      <div>
+        <button @click="running ? stop() : start()" class="hover:underline text-primary bg-transparent border-none p-0 cursor-pointer text-sm font-bold" x-text="running ? 'Stop Speed Test' : 'Start Speed Test'"></button>
+      </div>
+
+      <div x-show="running || finished" x-cloak>
+        <p class="font-bold" x-text="speedLabel"></p>
+        <p class="text-muted-foreground" x-text="statusLabel"></p>
+        <p class="text-muted-foreground text-xs" x-show="running" x-text="activeConnections + ' active connection' + (activeConnections === 1 ? '' : 's')"></p>
+      </div>
+
+      <!-- Per-connection breakdown -->
+      <div x-show="(running || finished) && connectionSpeeds.length > 1" x-cloak class="border rounded p-2">
+        <p class="font-bold mb-1 text-xs uppercase text-muted-foreground">Per-connection speed</p>
+        <template x-for="(conn, index) in connectionSpeeds" :key="index">
+          <div class="flex justify-between items-center py-0.5" :class="index > 0 ? 'border-t' : ''">
+            <span>Connection <span x-text="index + 1"></span><span x-show="!conn.alive" class="text-muted-foreground"> (ended)</span></span>
+            <span x-text="conn.label"></span>
+          </div>
+        </template>
+      </div>
+
+      <!-- Session total download -->
+      <div class="border-t pt-3 mt-3">
+        <p class="font-bold" x-text="'Total downloaded this session: ' + sessionTotalLabel"></p>
+        <button @click="resetSessionTotal()" class="hover:underline text-primary bg-transparent border-none p-0 cursor-pointer text-xs text-muted-foreground mt-1">Reset session total</button>
+      </div>
+
+      <div>
+        <h3 class="font-bold mb-1">How do I read these results?</h3>
+        <p class="text-muted-foreground">If your speed is slower than what you have payed for, you should contact your provider.</p>
+        <p class="text-muted-foreground">If you want faster download speed, try FDM (Free Download Manager).</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function speedtest() {
+      return {
+        duration: '15',
+        connections: '4',
+        running: false,
+        finished: false,
+        speedLabel: '',
+        statusLabel: '',
+        activeConnections: 0,
+        connectionSpeeds: [], // [{ bytes, label, alive }] one entry per parallel connection
+        _controller: null,
+        _startTime: 0,
+        _timer: null,
+
+        // Rolling window for combined speed measurement
+        _window: [],      // [{ time, bytes }]
+        WINDOW_MS: 3000,  // 3-second rolling window
+
+        // Cumulative bytes downloaded across all tests run during this page session
+        sessionTotalBytes: 0,
+        sessionTotalLabel: '0 MB',
+
+        init() {
+          this._updateSessionTotalLabel();
+        },
+
+        start() {
+          this.running = true;
+          this.finished = false;
+          this._startTime = performance.now();
+          this._window = [];
+          this.speedLabel = 'Testing...';
+          this.statusLabel = '';
+          this._controller = new AbortController();
+
+          const limitSeconds = parseInt(this.duration, 10);
+          if (limitSeconds > 0) {
+            this._timer = setTimeout(() => this.stop(), limitSeconds * 1000);
+          }
+
+          // Kick off N parallel download streams. Each one tracks its own
+          // byte count (for the per-connection display) and also feeds the
+          // shared rolling window (for the combined speed).
+          const n = parseInt(this.connections, 10) || 1;
+          this.activeConnections = n;
+          this.connectionSpeeds = Array.from({ length: n }, () => ({ bytes: 0, label: '0.00 Mbit/s', alive: true }));
+          for (let i = 0; i < n; i++) {
+            this._download(i);
+          }
+        },
+
+        async _download(index) {
+          try {
+            while (this.running) {
+              const res = await fetch('https://speed.cloudflare.com/__down?bytes=104857600', { signal: this._controller.signal });
+              const reader = res.body.getReader();
+              while (this.running) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const now = performance.now();
+                this.sessionTotalBytes += value.length;
+                this.connectionSpeeds[index].bytes += value.length;
+
+                // Push into rolling window (shared across all connections)
+                this._window.push({ time: now, bytes: value.length });
+
+                this._updateSpeed();
+                this._updateConnectionSpeed(index);
+                this._updateSessionTotalLabel();
+              }
+              if (!this.running) break;
+            }
+          } catch (e) {
+            if (!this._controller.signal.aborted) {
+              // Let other still-running connections keep going; only report
+              // a hard failure if every connection has stopped producing data.
+              this.connectionSpeeds[index].alive = false;
+              this.activeConnections = Math.max(0, this.activeConnections - 1);
+              if (this.activeConnections === 0 && this.running) {
+                this.speedLabel = 'Speed test failed.';
+                this.statusLabel = 'Please try again.';
+                this.running = false;
+              }
+            }
+          }
+        },
+
+        _updateSpeed() {
+          const now = performance.now();
+
+          // Drop entries older than the rolling window
+          const cutoff = now - this.WINDOW_MS;
+          while (this._window.length > 0 && this._window[0].time < cutoff) {
+            this._window.shift();
+          }
+
+          // Sum bytes inside the window
+          const windowBytes = this._window.reduce((sum, e) => sum + e.bytes, 0);
+
+          // Use actual elapsed time until we've filled the window
+          const elapsed = (now - this._startTime) / 1000;
+          const windowSec = Math.min(elapsed, this.WINDOW_MS / 1000);
+          if (windowSec <= 0) return;
+
+          const mbps = (windowBytes * 8 / windowSec) / 1_000_000;  // Mbit/s
+          const mBps = (windowBytes / windowSec) / 1_000_000;       // MB/s
+          this.speedLabel = mbps.toFixed(2) + ' Mbit/s (' + mBps.toFixed(2) + ' MB/s)';
+          this.statusLabel = 'Elapsed: ' + elapsed.toFixed(1) + 's';
+        },
+
+        _updateConnectionSpeed(index) {
+          const elapsed = (performance.now() - this._startTime) / 1000;
+          if (elapsed <= 0) return;
+          const conn = this.connectionSpeeds[index];
+          const mbps = (conn.bytes * 8 / elapsed) / 1_000_000;
+          const mBps = (conn.bytes / elapsed) / 1_000_000;
+          conn.label = mbps.toFixed(2) + ' Mbit/s (' + mBps.toFixed(2) + ' MB/s)';
+        },
+
+        _updateSessionTotalLabel() {
+          this.sessionTotalLabel = this._formatBytes(this.sessionTotalBytes);
+        },
+
+        _formatBytes(bytes) {
+          if (bytes < 1024) return bytes + ' B';
+          const units = ['KB', 'MB', 'GB', 'TB'];
+          let value = bytes / 1024;
+          let unitIndex = 0;
+          while (value >= 1024 && unitIndex < units.length - 1) {
+            value /= 1024;
+            unitIndex++;
+          }
+          return value.toFixed(2) + ' ' + units[unitIndex];
+        },
+
+        resetSessionTotal() {
+          this.sessionTotalBytes = 0;
+          this._updateSessionTotalLabel();
+        },
+
+        stop() {
+          this.running = false;
+          this.finished = true;
+          this.activeConnections = 0;
+          if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+          if (this._controller) { this._controller.abort(); }
+          this._updateSpeed();
+          this.statusLabel = 'Test finished.';
+        }
+      };
+    }
+  </script>
+
+  <script>
+    if ("serviceWorker" in navigator)
+      navigator.serviceWorker.register("/service-worker.js");
+  </script>
+
+  <script>
+    // Fade in globe when loaded
+    document.querySelector('#fum-globe-bg model-viewer')
+      ?.addEventListener('load', function() { this.classList.add('loaded'); });
+  </script>
+</body>
+</html>

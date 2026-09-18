@@ -18,15 +18,6 @@
     #buzz-frame { width: 100%; height: 160px; border: none; display: block; background: #0d0d0d; }
     #fd-wrap { width: 100%; overflow: hidden; background: #0d0d0d; }
     #fd-frame { width: 100%; height: 160px; border: none; display: block; background: #0d0d0d; }
-    #fd-degraded-notice {
-      background: #2a1f0d;
-      border: 1px solid #8a5a00;
-      color: #f0c674;
-      font-size: 0.8rem;
-      padding: 0.5rem 0.75rem;
-      border-radius: 0.375rem;
-      margin-bottom: 0.5rem;
-    }
   </style>
 </head>
 <body class="min-h-screen p-4" x-data="dlApp()" x-init="init()">
@@ -37,7 +28,7 @@
       auto-rotate auto-rotate-delay="0" rotation-per-second="6deg">
     </model-viewer>
   </div>
- 
+
   <div class="text-center mb-1">
     <a href="../index.html" class="inline-flex items-center gap-3 no-underline">
       <img src="../images/logo.png" alt="Free Upload Manager" class="h-12 w-auto">
@@ -45,7 +36,7 @@
     </a>
     <p class="mt-0 text-muted-foreground">Upload files for free with ease.</p>
   </div>
- 
+
   <div class="text-center mb-4 text-sm">
     <a href="../index.html" class="hover:underline font-medium">Index</a>
     <span class="mx-1">|</span>
@@ -54,8 +45,6 @@
     <a href="../discord.html" target="_blank" rel="noopener noreferrer" class="hover:underline text-primary">Discord</a>
     <span class="mx-1">|</span>
     <a href="../terms.html" class="hover:underline text-primary">Terms</a>
-    <span class="mx-1">|</span>
-    <a href="../speedtest.html" class="hover:underline text-primary">Speedtest</a>
     <span class="mx-1">|</span>
     <a href="../freemanagers.html" class="hover:underline text-primary">Free Managers</a>
     <span class="mx-1">|</span>
@@ -75,28 +64,27 @@
       <a href="../auth/index.html" class="hover:underline text-primary">Login / Signup</a>
     </template>
   </div>
- 
+
   <!-- Download music -->
   <audio id="download-music" src="../sound/download.mp3" loop preload="auto"></audio>
- 
+
   <div class="mx-auto max-w-[60rem]">
- 
+
     <!-- Error state -->
     <div x-show="error" class="mt-4 text-sm">
       <p class="text-destructive" x-text="error"></p>
       <a href="../index.html" class="text-primary hover:underline">Upload a new file →</a>
     </div>
- 
+
     <!-- BuzzHeavier: embedded iframe -->
     <div x-show="!error && provider === 'buzzheavier' && fileId" x-cloak id="buzz-wrap">
-      <iframe id="buzz-frame" scrolling="no"
-        sandbox="allow-scripts allow-downloads allow-forms allow-same-origin"></iframe>
+      <iframe id="buzz-frame" scrolling="no"></iframe>
       <p class="text-xs text-muted-foreground mt-3">
         Uploaded using Free Upload Manager ·
         <a href="../index.html" class="hover:underline text-primary">Upload your own file</a>
       </p>
     </div>
- 
+
     <!-- FileDitch: file info + embedded iframe -->
     <div x-show="!error && provider === 'fileditch'" x-cloak>
       <div class="mb-2 flex gap-3 items-baseline flex-wrap" x-show="fileName || fileSize">
@@ -104,27 +92,17 @@
         <span class="text-xs text-muted-foreground" x-text="fileSize" x-show="fileSize"></span>
       </div>
       <p class="text-sm text-muted-foreground mb-2" x-text="note" x-show="note"></p>
- 
-      <!-- Shown only if the ad-stripped Worker proxy could not be loaded
-           (e.g. Edge Tracking Prevention blocking the cross-origin fetch) -->
-      <div id="fd-degraded-notice" x-show="fdDegraded" x-cloak>
-        Ad-free preview couldn't be loaded (your browser may be blocking it).
-        Showing the original host page instead —
-        <a :href="rawUrl" target="_blank" rel="noopener noreferrer" class="underline">open it directly</a> if needed.
-      </div>
- 
       <div id="fd-wrap">
-        <iframe id="fd-frame" scrolling="no"
-          sandbox="allow-scripts allow-downloads allow-forms allow-same-origin"></iframe>
+        <iframe id="fd-frame" scrolling="no"></iframe>
       </div>
       <p class="text-xs text-muted-foreground mt-3">
         Uploaded using <a href="https://freeuploadmanager.org" class="hover:underline text-primary" target="_blank">Free Upload Manager</a> ·
         <a href="../index.html" class="hover:underline text-primary">Upload your own file</a>
       </p>
     </div>
- 
+
   </div>
- 
+
   <script>
     function humanSize(b) {
       if (!b) return '';
@@ -132,20 +110,20 @@
       const i = Math.floor(Math.log(b) / Math.log(1024));
       return parseFloat((b / Math.pow(1024, i)).toFixed(2)) + ' ' + u[i];
     }
- 
+
     /* ------------------------------------------------------------------ *
      *  Ad-stripping for FileDitch HTML
      * ------------------------------------------------------------------ */
     function stripAds(html) {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
- 
+
       // 1. Remove ALL <script> tags — kills ad loaders, pop-up scripts, trackers
       doc.querySelectorAll('script').forEach(el => el.remove());
- 
+
       // 2. Remove ALL <iframe> tags inside the page (ad iframes)
       doc.querySelectorAll('iframe').forEach(el => el.remove());
- 
+
       // 3. Remove known ad/tracker tags + adblocker detection notices
       doc.querySelectorAll(
         'ins, [id*="ad"], [id*="banner"], [id*="popup"], [id*="pop"], [id*="overlay"], ' +
@@ -161,7 +139,7 @@
         '[id*="adNotice"], [class*="adNotice"], ' +
         '[id*="adWall"], [class*="adWall"]'
       ).forEach(el => el.remove());
- 
+
       // 3b. Text-based fallback: remove any container whose text contains
       //     adblock/whitelist keywords — catches dynamically-named divs
       const adblockKeywords = /adblocker detected|adblock detected|whitelist|please disable.*ad|disable.*adblock|ads? keep.{1,30}running/i;
@@ -173,7 +151,7 @@
           }
         }
       });
- 
+
       // 4. Remove <link> preloads / stylesheets pointing to external ad networks
       doc.querySelectorAll('link[href]').forEach(el => {
         const href = el.getAttribute('href') || '';
@@ -181,7 +159,7 @@
           el.remove();
         }
       });
- 
+
       // 5. Inject anti-popup + auto-click-download guard script
       //    Runs before anything else (no other scripts remain, but just in case)
       const guard = doc.createElement('script');
@@ -197,7 +175,7 @@
           }
           return null;
         };
- 
+
         // Block window.location redirects to ad pages
         var _locDesc = Object.getOwnPropertyDescriptor(window, 'location');
         try {
@@ -214,69 +192,42 @@
             }
           });
         } catch(e){}
- 
+
         // Report iframe height to parent
         function sh(){ parent.postMessage({type:'iframeHeight', h: document.body.scrollHeight}, '*'); }
         new ResizeObserver(sh).observe(document.body);
         sh();
       })();`;
       doc.head.insertBefore(guard, doc.head.firstChild);
- 
+
       return '<!DOCTYPE html>' + doc.documentElement.outerHTML;
     }
- 
-    /* ------------------------------------------------------------------ *
-     *  Small fetch-with-retry helper.
-     *  Edge's Tracking Prevention (and some ad-blocking extensions) can
-     *  intermittently block the first cross-origin fetch to the Worker.
-     *  A short retry avoids treating a transient block as a hard failure.
-     * ------------------------------------------------------------------ */
-    async function fetchWithRetry(url, { attempts = 2, delayMs = 400, fetchOpts = {} } = {}) {
-      let lastErr;
-      for (let i = 0; i < attempts; i++) {
-        try {
-          const res = await fetch(url, {
-            cache: 'no-store',
-            credentials: 'omit',
-            referrerPolicy: 'no-referrer',
-            ...fetchOpts
-          });
-          if (!res.ok) throw new Error('worker ' + res.status);
-          return res;
-        } catch (err) {
-          lastErr = err;
-          if (i < attempts - 1) await new Promise(r => setTimeout(r, delayMs));
-        }
-      }
-      throw lastErr;
-    }
- 
+
     function dlApp() {
       return {
-        accountId  : localStorage.getItem('fum_account_id') || '',
-        provider   : '',   // 'buzzheavier' | 'fileditch'
-        fileId     : '',   // BuzzHeavier only
-        rawUrl     : '',   // FileDitch only
-        fileName   : '',
-        fileSize   : '',
-        note       : '',
-        error      : '',
-        fdDegraded : false, // true when the ad-stripped proxy load failed and we fell back to raw embed
- 
+        accountId: localStorage.getItem('fum_account_id') || '',
+        provider : '',   // 'buzzheavier' | 'fileditch'
+        fileId   : '',   // BuzzHeavier only
+        rawUrl   : '',   // FileDitch only
+        fileName : '',
+        fileSize : '',
+        note     : '',
+        error    : '',
+
         async init() {
           const p      = new URLSearchParams(window.location.search);
           const rawUrl = p.get('url') || '';
           const name   = decodeURIComponent(p.get('name') || '');
           const size   = parseInt(p.get('size') || '0', 10);
           const note   = p.get('note') || '';
- 
+
           this.fileName = name;
           this.fileSize = humanSize(size);
           this.note     = note;
           this.rawUrl   = rawUrl;
- 
+
           if (name) document.title = name + ' - Free Upload Manager';
- 
+
           // Background music: try to autoplay; if the browser blocks it
           // (most do, until the visitor has interacted with the page),
           // start it on the first click/keypress instead.
@@ -296,9 +247,9 @@
           document.addEventListener('click', startOnInteraction);
           document.addEventListener('keydown', startOnInteraction);
           document.addEventListener('touchstart', startOnInteraction);
- 
+
           if (!rawUrl) { this.error = 'Ogiltig nedladdningslänk.'; return; }
- 
+
           // Detect provider from the raw URL
           if (rawUrl.includes('buzzheavier.com')) {
             this.provider = 'buzzheavier';
@@ -306,9 +257,9 @@
             const innerParams = new URLSearchParams(decoded.split('?')[1] || '');
             this.fileId = innerParams.get('_id')
               || decoded.replace(/.*buzzheavier\.com\//, '').split('?')[0].trim();
- 
+
             if (!this.fileId) { this.error = 'Ogiltig BuzzHeavier-länk.'; return; }
- 
+
             window.addEventListener('message', e => {
               if (e.data?.type === 'iframeHeight') {
                 const f = document.getElementById('buzz-frame');
@@ -316,99 +267,73 @@
               }
             });
             await this.loadBuzzPage();
- 
+
           } else if (rawUrl.includes('fileditch')) {
             this.provider = 'fileditch';
             await this.loadFileDitchPage();
- 
+
           } else {
             this.error = 'Okänd filhost i länken.';
           }
         },
- 
+
         /* ---------------------------------------------------------------- *
          *  FileDitch — fetch via Worker proxy, strip ads, embed as srcdoc
          *  Sandbox: NO allow-popups, NO allow-top-navigation
          * ---------------------------------------------------------------- */
         async loadFileDitchPage() {
-          const frame = document.getElementById('fd-frame');
+          const frame  = document.getElementById('fd-frame');
           if (!frame) return;
- 
+
           const WORKER = (typeof FUM_CONFIG !== 'undefined') ? FUM_CONFIG.WORKER_URL : '';
- 
-          if (!WORKER) {
-            // No Worker configured at all — go straight to the degraded
-            // path instead of firing a doomed same-origin fetch.
-            console.warn('FUM_CONFIG.WORKER_URL is not defined; skipping proxy fetch.');
-            this.fallbackFileDitchEmbed(frame);
-            return;
-          }
- 
+
           // Listen for height messages from the cleaned iframe
           window.addEventListener('message', e => {
             if (e.data?.type === 'iframeHeight') {
               frame.style.height = (e.data.h + 20) + 'px';
             }
           });
- 
+
           try {
             // Reuse the same Worker proxy endpoint that already serves BuzzHeavier pages.
             // The Worker just fetches the URL server-side and returns the HTML,
             // bypassing CORS and letting us manipulate it here.
             const proxyUrl = `${WORKER}/page/fd?url=${encodeURIComponent(this.rawUrl)}`;
-            const res  = await fetchWithRetry(proxyUrl, { attempts: 2, delayMs: 400 });
+            const res = await fetch(proxyUrl);
+            if (!res.ok) throw new Error('worker ' + res.status);
+
             const html = await res.text();
- 
-            // Sandbox MUST be set before srcdoc/src — some browsers (Edge
-            // included) can begin processing the navigation the instant
-            // srcdoc is assigned, so setting sandbox afterwards can be too
-            // late to apply to that first load, letting popups through.
-            // Scripts allowed (for download button), downloads allowed,
-            // forms allowed — but NO allow-popups, NO allow-top-navigation.
-            frame.setAttribute('sandbox',
-              'allow-scripts allow-downloads allow-forms allow-same-origin');
- 
+
             // Strip all ads, popups, external scripts before embedding
             frame.srcdoc = stripAds(html);
- 
+
+            // Sandbox: scripts allowed (for download button), downloads allowed,
+            // forms allowed — but NO popups, NO top-navigation
+            frame.setAttribute('sandbox',
+              'allow-scripts allow-downloads allow-forms allow-same-origin');
+
             frame.style.height = '120px';
-            this.fdDegraded = false;
- 
+
           } catch (err) {
-            // Likely causes: Edge Tracking Prevention / an extension blocking
-            // the cross-origin fetch to the Worker, the Worker being down,
-            // or a network error. We can't strip ads without the HTML, so
-            // fall back to a direct (unstripped) embed and tell the user.
+            // Fallback: direct embed without allow-popups (blocks most ad tabs)
             console.warn('Worker proxy failed, falling back to direct embed:', err);
-            this.fallbackFileDitchEmbed(frame);
+            frame.src = this.rawUrl;
+            frame.setAttribute('sandbox',
+              'allow-scripts allow-downloads allow-forms allow-same-origin');
+            // No allow-popups = popup ads are blocked even in fallback
           }
         },
- 
-        // Shared fallback: embed the raw FileDitch page directly.
-        // We deliberately DROP allow-same-origin here (unlike the proxy
-        // path) since this content is untrusted and unstripped — keeping
-        // scripts sandboxed to an opaque origin limits what a malicious
-        // ad script can do (no access to cookies/storage, no same-origin
-        // postMessage spoofing), at the cost of the download button
-        // possibly needing a click-through on some hosts.
-        fallbackFileDitchEmbed(frame) {
-          this.fdDegraded = true;
-          // Sandbox set BEFORE src, same reasoning as above — order matters.
-          frame.setAttribute('sandbox', 'allow-scripts allow-downloads allow-forms');
-          frame.src = this.rawUrl;
-          frame.style.height = '600px';
-        },
- 
+
         async loadBuzzPage() {
           const frame  = document.getElementById('buzz-frame');
           const WORKER = (typeof FUM_CONFIG !== 'undefined') ? FUM_CONFIG.WORKER_URL : '';
- 
+
           try {
-            if (!WORKER) throw new Error('no worker configured');
- 
-            const res  = await fetchWithRetry(`${WORKER}/page/${this.fileId}`, { attempts: 2, delayMs: 400 });
-            let html   = await res.text();
- 
+            const res = await fetch(`${WORKER}/page/${this.fileId}`);
+            if (!res.ok) throw new Error('worker ' + res.status);
+
+            let html = await res.text();
+
             const script = [
               '<script>(function(){',
               '  function sh(){parent.postMessage({type:"iframeHeight",h:document.body.scrollHeight},"*");}',
@@ -421,25 +346,18 @@
               '  };',
               '})()<\/script>'
             ].join('\n');
- 
+
             html = html.includes('</body>')
               ? html.replace('</body>', script + '</body>')
               : html + script;
- 
-            // Sandbox before srcdoc — see note in loadFileDitchPage.
-            // This path previously had NO sandbox at all, meaning any
-            // popup/target=_blank ad on the fetched BuzzHeavier page could
-            // open a new tab completely unrestricted. It's now sandboxed
-            // like FileDitch: no allow-popups, no allow-top-navigation.
-            frame.setAttribute('sandbox',
-              'allow-scripts allow-downloads allow-forms allow-same-origin');
+
             frame.srcdoc = html;
             frame.style.height = '160px';
- 
+
           } catch (_) {
+            frame.src = 'https://buzzheavier.com/' + this.fileId;
             frame.setAttribute('sandbox',
               'allow-scripts allow-downloads allow-forms allow-same-origin');
-            frame.src = 'https://buzzheavier.com/' + this.fileId;
             frame.style.marginTop = '-135px';
             frame.style.height    = '620px';
           }
@@ -447,12 +365,12 @@
       };
     }
   </script>
- 
+
   <script>
     if ("serviceWorker" in navigator)
       navigator.serviceWorker.register("/service-worker.js");
   </script>
- 
+
   <script>
     // Fade in globe when loaded
     document.querySelector('#fum-globe-bg model-viewer')

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speedtest - Free Upload Manager</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/globe-bg.css">
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.2.0/model-viewer.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="min-h-screen p-4" x-data="{accountId: localStorage.getItem('fum_account_id') || ''}">
+  <!-- Rotating globe background (auto-rotate, no sound/interaction) -->
+  <div id="fum-globe-bg" aria-hidden="true">
+    <model-viewer src="images/globe/earth.gltf" disable-zoom interaction-prompt="none"
+      shadow-intensity="0" exposure="0.5" camera-orbit="0deg 75deg 0.16m" field-of-view="30deg"
+      auto-rotate auto-rotate-delay="0" rotation-per-second="6deg">
+    </model-viewer>
+  </div>
+
+  <!-- Logo + Header -->
+  <div class="text-center mb-1">
+    <a href="index.html" class="inline-flex items-center gap-3 no-underline">
+      <img src="images/logo.png" alt="Free Upload Manager" class="h-12 w-auto">
+      <h1 class="text-3xl font-bold mt-1 mb-0 text-foreground">FREE UPLOAD MANAGER</h1>
+    </a>
+    <p class="mt-0 text-muted-foreground">Upload files for free with ease.</p>
+  </div>
+
+  <!-- Navbar -->
+  <div class="text-center mb-4 text-sm">
+    <a href="index.html" class="hover:underline font-medium">Index</a>
+    <span class="mx-1">|</span>
+    <a href="help/index.html" class="hover:underline text-primary">Help</a>
+    <span class="mx-1">|</span>
+    <a href="discord.html" target="_blank" rel="noopener noreferrer" class="hover:underline text-primary">Discord</a>
+    <span class="mx-1">|</span>
+    <a href="terms.html" class="hover:underline text-primary">Terms</a>
+    <span class="mx-1">|</span>
+    <a href="speedtest.html" class="hover:underline text-primary">Speedtest</a>
+    <span class="mx-1">|</span>
+    <a href="freemanagers.html" class="hover:underline text-primary">Free Managers</a>
+    <span class="mx-1">|</span>
+    <a href="linktous.html" class="hover:underline text-primary">Link To Us</a>
+    <span class="mx-1">|</span>
+    <a href="getapp.html" class="hover:underline text-primary">Get App</a>
+    <span class="mx-1">|</span>
+    <template x-if="accountId">
+      <span>
+        <a href="account/index.html" class="hover:underline text-primary">My Account</a>
+        <span class="mx-1">|</span>
+        <button @click="localStorage.removeItem('fum_account_id'); accountId=''" class="hover:underline text-primary bg-transparent border-none p-0 cursor-pointer text-sm">Logout</button>
+      </span>
+    </template>
+    <template x-if="!accountId">
+      <a href="auth/index.html" class="hover:underline text-primary">Login / Signup</a>
+    </template>
+  </div>
+
+  <!-- Main content -->
+  <div class="mx-auto max-w-[60rem]" x-data="speedtest()">
+    <h2 class="text-xl font-bold mb-4">Speedtest</h2>
+    <p class="mb-4"><img src="/images/info.ico" style="height: 1em; display: inline; vertical-align: middle;">The speedtest measures the maximum download speed for you computer and internet connection.</p>
+
+    <div class="space-y-4 text-sm">
+      <div class="space-x-4" x-show="!running">
+        <label class="cursor-pointer">
+          <input type="radio" name="duration" value="15" x-model="duration">
+          15 seconds
+        </label>
+        <label class="cursor-pointer">
+          <input type="radio" name="duration" value="0" x-model="duration">
+          Until stopped
+        </label>
+      </div>
+
+      <div>
+        <button class="px-3 py-1 border rounded-sm bg-background hover:bg-muted text-sm cursor-pointer transition-colors border-foreground font-medium" @click="running ? stop() : start()" x-text="running ? 'Stop Speed Test' : 'Start Speed Test'"></button>
+      </div>
+
+      <div x-show="running || finished" x-cloak>
+        <p class="font-bold" x-text="speedLabel"></p>
+        <p class="text-muted-foreground" x-text="statusLabel"></p>
+        <p class="font-bold" x-text="avgSpeedLabel"></p>
+        <p class="text-muted-foreground" x-text="totalLabel"></p>
+      </div>
+
+      <div class="px-3 py-1 border rounded-sm bg-background hover:bg-muted text-sm transition-colors border-foreground font-medium">
+        <h3 class="font-bold mb-1">How do I read these results?</h3>
+        <p><strong>Current Speed</strong> is your average download speed in the past <strong>5 seconds</strong>.</p>
+        <p><strong>Average Speed</strong> is your average download speed during the <strong>entire test</strong>.</p>
+      </div>
+      <div class="bg-background transition-colors border rounded-sm border-foreground px-3 py-1">
+        <p class="text-muted-foreground">If your speed is slower than what you are paying for, your provider is limiting your connection, or your router is the bottleneck.</p>
+        <p class="text-muted-foreground">If you want faster download speeds, try FDM (Free Download Manager).</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function speedtest() {
+      return {
+        duration: '15',
+        running: false,
+        finished: false,
+        speedLabel: '',
+        avgSpeedLabel: '',
+        statusLabel: '',
+        totalLabel: '',
+        _controller: null,
+        _bytes: 0,
+        _windowBytes: 0,
+        _buckets: [],       // [{t, bytes}] — max ~50 entries
+        _bucketMs: 100,
+        _windowMs: 5000,
+        _startTime: 0,
+        _timer: null,
+        _uiTimer: null,
+        _smoothMbps: null,  // EMA state; null = not yet initialised
+        _emaAlpha: 0.4,     // smoothing factor: lower = smoother, higher = more responsive
+
+        start() {
+          this.running       = true;
+          this.finished      = false;
+          this._bytes        = 0;
+          this._windowBytes  = 0;
+          this._buckets      = [];
+          this._smoothMbps   = null;
+          this._startTime    = performance.now();
+          this.speedLabel    = 'Testing...';
+          this.avgSpeedLabel = '';
+          this.statusLabel   = '';
+          this.totalLabel    = '';
+          this._controller   = new AbortController();
+
+          this._uiTimer = setInterval(() => this._updateSpeed(), 50);
+
+          const limitSeconds = parseInt(this.duration, 10);
+          if (limitSeconds > 0) {
+            this._timer = setTimeout(() => this.stop(), limitSeconds * 1000);
+          }
+
+          this._download();
+        },
+
+        async _download() {
+          const workers = 8; // parallel streams
+          const tasks = Array.from({ length: workers }, () => this._downloadWorker());
+          await Promise.all(tasks);
+        },
+
+        async _downloadWorker() {
+          try {
+            while (this.running) {
+              const res = await fetch('https://speed.cloudflare.com/__down?bytes=104857600', { signal: this._controller.signal });
+              const reader = res.body.getReader();
+              while (this.running) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                this._accumulate(value.length, performance.now());
+              }
+              if (!this.running) break;
+            }
+          } catch (e) {
+            if (!this._controller.signal.aborted) {
+              this.speedLabel  = 'Speed test failed.';
+              this.statusLabel = 'Please try again.';
+              this.running = false;
+            }
+          }
+        },
+
+        _accumulate(bytes, now) {
+          this._bytes += bytes;
+          const bucketT = Math.floor(now / this._bucketMs) * this._bucketMs;
+          const last = this._buckets[this._buckets.length - 1];
+          if (last && last.t === bucketT) {
+            last.bytes += bytes;
+          } else {
+            this._buckets.push({ t: bucketT, bytes });
+          }
+          this._windowBytes += bytes;
+        },
+
+        _updateSpeed() {
+          const now = performance.now();
+
+          // Evict expired buckets
+          while (this._buckets.length && now - this._buckets[0].t > this._windowMs) {
+            this._windowBytes -= this._buckets.shift().bytes;
+          }
+          if (this._windowBytes < 0) this._windowBytes = 0;
+
+          const oldestT       = this._buckets.length ? this._buckets[0].t : this._startTime;
+          const windowElapsed = Math.max((now - oldestT) / 1000, 0.05);
+
+          // Raw current speed
+          const rawMbps = (this._windowBytes * 8 / windowElapsed) / 1_000_000;
+
+          // EMA smoothing — seed with raw value on first call
+          if (this._smoothMbps === null) {
+            this._smoothMbps = rawMbps;
+          } else {
+            this._smoothMbps = this._emaAlpha * rawMbps + (1 - this._emaAlpha) * this._smoothMbps;
+          }
+
+          const smoothMBps = this._smoothMbps / 8;
+          this.speedLabel = 'Current speed: ' + this._smoothMbps.toFixed(2) + ' Mbit/s (' + smoothMBps.toFixed(2) + ' MB/s)';
+
+          const totalElapsed = Math.max((now - this._startTime) / 1000, 0.05);
+          const avgMbps = (this._bytes * 8 / totalElapsed) / 1_000_000;
+          const avgMBps = (this._bytes   / totalElapsed)   / 1_000_000;
+          const prefix  = this.finished ? 'Average speed: ' : 'Average Speed: ';
+          this.avgSpeedLabel = prefix + avgMbps.toFixed(2) + ' Mbit/s (' + avgMBps.toFixed(2) + ' MB/s)';
+
+          this.statusLabel = 'Time Elapsed: ' + totalElapsed.toFixed(1) + 's';
+          this.totalLabel  = 'Total downloaded this session: ' + this._formatBytes(this._bytes);
+        },
+
+        _formatBytes(bytes) {
+          const mb = bytes / 1_000_000;
+          return mb >= 1000 ? (mb / 1000).toFixed(2) + ' GB' : mb.toFixed(2) + ' MB';
+        },
+
+        stop() {
+          this.running  = false;
+          this.finished = true;
+          if (this._timer)      { clearTimeout(this._timer);    this._timer   = null; }
+          if (this._uiTimer)    { clearInterval(this._uiTimer); this._uiTimer = null; }
+          if (this._controller) { this._controller.abort(); }
+          this._updateSpeed();
+          this.statusLabel = 'Test finished.';
+        }
+      };
+    }
+  </script>
+
+  <script>
+    if ("serviceWorker" in navigator)
+      navigator.serviceWorker.register("/service-worker.js");
+  </script>
+
+  <script>
+    document.querySelector('#fum-globe-bg model-viewer')
+      ?.addEventListener('load', function() { this.classList.add('loaded'); });
+  </script>
+</body>
+</html>

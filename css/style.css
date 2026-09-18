@@ -30,23 +30,368 @@ body {
 a { color: hsl(var(--primary)); }
 a:hover { text-decoration: none; }
 
-/* Readability backdrop over globe background */
+/* Readability backdrop — cleared, Wii U theme handles this below */
 body > .text-center:first-of-type {
   position: relative;
   z-index: 1;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  border-radius: 0.5rem;
-  padding: 0.75rem 1.5rem 0.5rem;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .mx-auto.max-w-\[60rem\] {
   position: relative;
   z-index: 1;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  border-radius: 0.75rem;
-  padding: 1.5rem;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+/*
+ * Free Upload Manager — Wii U Theme
+ * Inspirerat av Mii Creator (mii.nxw.pw) Wii U-temat.
+ *
+ * Lägg till denna fil i <head> EFTER befintliga stilar:
+ *   <link rel="stylesheet" href="css/wiiu-theme.css">
+ *
+ * Temat ersätter bara CSS-variabler och ett fåtal komponenter,
+ * befintlig HTML behöver inte ändras.
+ */
+
+/* ─── Globala färgvariabler (ljust Wii U-tema) ─────────────────────────── */
+:root {
+  --background:       0 0% 93%;      /* #ededed – ljusgrå bakgrund */
+  --foreground:       0 0% 8%;       /* #141414 – nästan svart text */
+  --card:             0 0% 97%;
+  --card-foreground:  0 0% 8%;
+  --popover:          0 0% 97%;
+  --popover-foreground: 0 0% 8%;
+
+  /* Wii U:s signaturgröna accent */
+  --primary:          138 100% 28%;  /* #008e00 */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary:        0 0% 88%;
+  --secondary-foreground: 0 0% 8%;
+  --muted:            0 0% 88%;
+  --muted-foreground: 0 0% 40%;
+  --accent:           0 0% 88%;
+  --accent-foreground: 0 0% 8%;
+
+  --destructive:      0 84% 55%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border:           0 0% 74%;
+  --input:            0 0% 74%;
+  --ring:             138 100% 28%;
+
+  --radius: 0.5rem;
+
+  /* Sidebar (används av nedre navbar i sidebar-layout) */
+  --sidebar-background:        0 0% 90%;
+  --sidebar-foreground:        240 5.3% 26.1%;
+  --sidebar-primary:           138 100% 28%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent:            0 0% 84%;
+  --sidebar-accent-foreground: 0 0% 8%;
+  --sidebar-border:            0 0% 70%;
+  --sidebar-ring:              138 100% 28%;
+}
+
+/* ─── Bakgrund: Wii U-bakgrundsbild ─────────────────────────────────────── */
+body {
+  background-image: url("../images/bg_wiiu.png") !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  background-attachment: fixed !important;
+  background-position: center top !important;
+  background-color: #d6f5d6 !important;
+  color: hsl(var(--foreground));
+}
+
+/* Globen ska inte visas i Wii U-läget */
+#fum-globe-bg {
+  display: none !important;
+}
+
+/* ─── Wii U-knapp (precis som Mii Creator) ──────────────────────────────── */
+button,
+.px-3.py-1.border {
+  background: linear-gradient(to bottom,
+    #f2f2f2 0%,
+    #ffffff 0.1%,
+    #ffffff 50%,
+    #f7f7f7 80%,
+    #e2e2e2 95%,
+    #e9e9e9 96%,
+    #ffffff 100%
+  ) !important;
+  border-color: #b8b8b8 !important;
+  color: #1a1a1a !important;
+  border-radius: 10px !important;
+  box-shadow:
+    inset 0px 2px 0px -1px #e9e9e9,
+    inset 0px 0px 0px 2px #fff,
+    0px 1px 3px rgba(0, 0, 0, 0.35) !important;
+  text-shadow: 0px 1px 0px #fff !important;
+  transition: transform 0.1s ease-out !important;
+  font-weight: 500;
+}
+
+button:hover {
+  transform: scale(1.04) !important;
+  filter: none !important;
+  background: linear-gradient(to bottom,
+    #f2f2f2 0%,
+    #ffffff 0.1%,
+    #ffffff 50%,
+    #f7f7f7 80%,
+    #e2e2e2 95%,
+    #e9e9e9 96%,
+    #ffffff 100%
+  ) !important;
+}
+
+button:active {
+  transform: scale(0.98) !important;
+}
+
+button:disabled {
+  transform: none !important;
+  opacity: 0.45 !important;
+}
+
+/* Upload-knappen: grön (Wii U-primärfärg) */
+button[\\@click*="upload()"],
+button.bg-primary {
+  background: linear-gradient(to bottom,
+    #56d600 0%,
+    #5bf800 49%,
+    #4ddc00 51%,
+    #60dd00 100%
+  ) !important;
+  color: #fff !important;
+  text-shadow: 0px -1px 0px #206b00 !important;
+  box-shadow:
+    inset 0px 0px 0px 2px #5cff00,
+    0px 1px 6px rgba(0, 0, 0, 0.3) !important;
+  border-color: #3a9900 !important;
+}
+
+button[\\@click*="upload()"]:hover,
+button.bg-primary:hover {
+  filter: brightness(1.06) !important;
+  transform: scale(1.04) !important;
+}
+
+/* ─── Tab-bar / Navbar ──────────────────────────────────────────────────── */
+
+/* Navbar-länkarna */
+.text-center.mb-4 {
+  background: linear-gradient(to bottom,
+    #b6ff8c 0%,
+    #5bfb00 49%,
+    #51df00 52%,
+    #51df00 82%,
+    #dbffc7 100%
+  );
+  box-shadow: 0px -2px 7px 1px #088d00 inset;
+  border-radius: 0 0 14px 14px;
+  padding: 8px 16px 10px;
+  margin-bottom: 1.25rem !important;
+}
+
+.text-center.mb-4 a,
+.text-center.mb-4 span,
+.text-center.mb-4 button {
+  color: #004a00 !important;
+  text-shadow: 0px 1px 0px rgba(255,255,255,0.5) !important;
+  background: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transform: none !important;
+}
+
+.text-center.mb-4 a:hover {
+  color: #002800 !important;
+  text-decoration: underline;
+}
+
+/* ─── Logotyp-sektionen ─────────────────────────────────────────────────── */
+.text-center.mb-1 {
+  background: rgba(255, 255, 255, 0.60);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 12px;
+  padding: 1rem 1.5rem 0.75rem;
+  box-shadow:
+    0 2px 12px rgba(0,0,0,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.95);
+  margin-bottom: 0 !important;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* ─── Innehållskortet ───────────────────────────────────────────────────── */
+.mx-auto.max-w-\\[60rem\\] {
+  background: rgba(255, 255, 255, 0.52) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border-radius: 12px !important;
+  border: 4px solid #aabebe !important;
+  padding: 1.5rem !important;
+  box-shadow:
+    0 4px 24px rgba(0, 100, 60, 0.10),
+    inset 0 1px 0 rgba(255,255,255,0.8) !important;
+}
+
+/* ─── Inputs ────────────────────────────────────────────────────────────── */
+input[type="file"] {
+  background: linear-gradient(to bottom,
+    #f2f2f2 0%,
+    #ffffff 0.1%,
+    #ffffff 50%,
+    #f7f7f7 80%,
+    #e2e2e2 95%,
+    #e9e9e9 96%,
+    #ffffff 100%
+  );
+  border: 1px solid #b8b8b8 !important;
+  border-radius: 8px !important;
+  padding: 6px 10px !important;
+  color: #1a1a1a !important;
+  box-shadow:
+    inset 0px 2px 0px -1px #e9e9e9,
+    inset 0px 0px 0px 2px #fff !important;
+}
+
+input[type="file"]::file-selector-button {
+  background: linear-gradient(to bottom, #f2f2f2 0%, #ffffff 0.1%, #ffffff 50%, #f7f7f7 80%, #e2e2e2 95%, #e9e9e9 96%, #ffffff 100%);
+  border: 1px solid #b0b0b0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  margin-right: 8px;
+  box-shadow: inset 0px 1px 0px rgba(255,255,255,0.8), 0px 1px 2px rgba(0,0,0,0.2);
+  cursor: pointer;
+  transition: transform 0.1s ease-out;
+  color: #1a1a1a;
+}
+
+input[type="file"]::file-selector-button:hover {
+  transform: scale(1.04);
+}
+
+textarea {
+  background: #fff !important;
+  border: 1px solid #b8b8b8 !important;
+  border-radius: 8px !important;
+  box-shadow: inset 0px 2px 3px -1px #d0d0d0 !important;
+  color: #1a1a1a !important;
+}
+
+textarea:focus {
+  border-color: #009900 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(0, 153, 0, 0.25) !important;
+}
+
+/* ─── Provider-knappar (Buzzheavier / FileDitch) ────────────────────────── */
+.border-foreground {
+  border-color: #009900 !important;
+  box-shadow:
+    inset 0px 0px 0px 2px #55ff00,
+    0px 1px 6px rgba(0, 0, 0, 0.25) !important;
+  font-weight: 600 !important;
+  color: #003a00 !important;
+}
+
+/* ─── Progress-bar ──────────────────────────────────────────────────────── */
+.progress-bar-wrap {
+  border-radius: 6px !important;
+  background: #d0d8d0 !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.2) !important;
+}
+
+.progress-bar-inner {
+  background: linear-gradient(to bottom,
+    #56d600 0%,
+    #5bf800 49%,
+    #4ddc00 51%,
+    #60dd00 100%
+  ) !important;
+  border-radius: 6px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4) !important;
+}
+
+.progress-bar-inner.error {
+  background: linear-gradient(to bottom,
+    #ff6a6a 0%,
+    #ff1818 50%,
+    #ff4c4c 100%
+  ) !important;
+}
+
+/* ─── Rubriker och text ─────────────────────────────────────────────────── */
+h1, h4 {
+  color: #1a1a1a;
+}
+
+h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Länkar ────────────────────────────────────────────────────────────── */
+a {
+  color: #006600 !important;
+}
+a:hover {
+  color: #004400 !important;
+}
+
+/* Fullgjorda uppladdningar (download-länkarna) */
+.text-primary {
+  color: #006600 !important;
+}
+
+/* ─── Footer ────────────────────────────────────────────────────────────── */
+footer {
+  color: #444 !important;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 10px;
+  padding: 0.75rem 1rem !important;
+  margin-top: 2rem !important;
+  box-shadow:
+    0 1px 6px rgba(0,0,0,0.07),
+    inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+footer a {
+  color: #006600 !important;
+}
+
+/* ─── Muted-text (host-labels, etc.) ───────────────────────────────────── */
+.text-muted-foreground {
+  color: hsl(0 0% 42%) !important;
+}
+
+/* ─── Checkboxes / radio (om sådana finns) ──────────────────────────────── */
+input[type="checkbox"] {
+  accent-color: #009900;
+}
+
+/* ─── Scrollbar (Wii U-grön) ────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 10px;
+  background-color: #dbffc7;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #088d00;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+  background-color: #dbffc7;
 }

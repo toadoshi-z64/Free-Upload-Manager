@@ -40,6 +40,8 @@
     <span class="mx-1">|</span>
     <a href="../terms.html" class="hover:underline text-primary">Terms</a>
     <span class="mx-1">|</span>
+    <a href="../speedtest.html" class="hover:underline text-primary">Speedtest</a>
+    <span class="mx-1">|</span>
     <a href="../freemanagers.html" class="hover:underline text-primary">Free Managers</a>
     <span class="mx-1">|</span>
     <a href="../linktous.html" class="hover:underline text-primary">Link To Us</a>
@@ -89,18 +91,18 @@
             <a href="../index.html" class="text-primary hover:underline">Upload a file</a>.
           </p>
         </template>
-
+<div class="bg-background transition-colors border rounded-sm border-foreground px-3 py-1">
         <ul class="space-y-1" x-show="files.length > 0">
           <template x-for="(file, i) in files" :key="file.id">
             <li class="flex flex-wrap items-center gap-3 text-sm py-1 border-b border-border">
               <a :href="file.file_url.replace('download/index.html', '../download/index.html')" target="_blank"
                 class="text-primary hover:underline flex-1" x-text="file.file_name"></a>
               <span class="text-muted-foreground" x-text="humanSize(file.file_size)"></span>
-              <span class="text-muted-foreground" x-text="(file.download_count||0) + ' downloads'"></span>
+              <span class="text-muted-foreground" x-text="(file.download_count||featureNotAddedYet) + ' downloads'"></span>
               <span class="text-muted-foreground text-xs" x-text="new Date(file.created_date).toLocaleDateString()"></span>
               <button @click="confirmDelete(file)"
                 class="text-destructive hover:underline text-xs cursor-pointer bg-transparent border-none p-0"
-                x-text="deleteConfirm === file.id ? 'Confirm delete?' : 'Delete'"></button>
+                x-text="deleteConfirm === file.id ? 'Confirm delete?(Will only remove this file from the list, people will still be able to download)' : 'Remove from list'"></button>
               <template x-if="deleteConfirm === file.id">
                 <button @click="deleteConfirm = null"
                   class="text-muted-foreground hover:underline text-xs cursor-pointer bg-transparent border-none p-0">
@@ -110,6 +112,7 @@
             </li>
           </template>
         </ul>
+</div>
       </div>
     </template>
 
